@@ -1,1 +1,1 @@
-from assemblyline.al.service.metadefender.metadefender import MetaDefender
+from al_services.alsvc_metadefender.metadefender import MetaDefender
