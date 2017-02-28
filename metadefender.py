@@ -28,7 +28,7 @@ class MetaDefender(ServiceBase):
     SERVICE_CATEGORY = "Antivirus"
     SERVICE_DESCRIPTION = "This service is a multi scanner with 20 engines."
     SERVICE_ENABLED = True
-    SERVICE_REVISION = ServiceBase.parse_revision('$Id: 5b6f920859e2e9ce9a5d68378aeb1a3ba5d48f0b $')
+    SERVICE_REVISION = ServiceBase.parse_revision('$Id$')
     SERVICE_VERSION = '1'
     SERVICE_STAGE = 'CORE'
     SERVICE_CPU_CORES = 0.1
@@ -57,7 +57,10 @@ class MetaDefender(ServiceBase):
 
     @staticmethod
     def _format_engine_name(name):
-        return name.lower().replace(" ", "").replace("!", "")
+        new_name = name.lower().replace(" ", "").replace("!", "")
+        if new_name.endswith("av"):
+            new_name = new_name[:-2]
+        return new_name
 
     def _get_version_map(self):
         self.engine_map = {}
