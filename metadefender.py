@@ -45,6 +45,7 @@ class MetaDefender(ServiceBase):
         self.engine_list = []
         self.newest_dat = epoch_to_local(0)
         self.oldest_dat = now_as_local()
+        self.session = None
 
     # noinspection PyUnresolvedReferences,PyGlobalUndefined
     def import_service_deps(self):
@@ -53,6 +54,7 @@ class MetaDefender(ServiceBase):
 
     def start(self):
         self.log.debug("MetaDefender service started")
+        self.session = requests.session()
         self._get_version_map()
 
     @staticmethod
@@ -69,7 +71,7 @@ class MetaDefender(ServiceBase):
         oldest_dat = now()
 
         url = self.cfg.get('BASE_URL') + "stat/engines"
-        r = requests.get(url=url)
+        r = self.session.get(url=url)
         engines = r.json()
 
         for engine in engines:
@@ -119,14 +121,14 @@ class MetaDefender(ServiceBase):
 
     def get_scan_results_by_data_id(self, data_id):
         url = self.cfg.get('BASE_URL') + 'file/{0}'.format(data_id)
-        return requests.get(url=url)
+        return self.session.get(url=url)
 
     def scan_file(self, filename):
         # Let's scan the file
         url = self.cfg.get('BASE_URL') + "file"
         with open(filename, 'rb') as f:
             sample = f.read()
-        r = requests.post(url=url, data=sample)
+        r = self.session.post(url=url, data=sample)
 
         if r.status_code == requests.codes.ok:
             data_id = r.json()['data_id']
