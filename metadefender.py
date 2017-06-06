@@ -46,6 +46,7 @@ class MetaDefender(ServiceBase):
         self.newest_dat = epoch_to_local(0)
         self.oldest_dat = now_as_local()
         self.session = None
+        self._updater_id = "ENABLE_SERVICE_BLK_MSG"
 
     # noinspection PyUnresolvedReferences,PyGlobalUndefined
     def import_service_deps(self):
