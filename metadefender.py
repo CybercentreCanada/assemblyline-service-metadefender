@@ -7,7 +7,7 @@ from assemblyline.al.common.result import Result, ResultSection, Classification,
 from assemblyline.al.common.av_result import VirusHitTag
 from assemblyline.al.service.base import ServiceBase
 
-log = logging.getLogger("assemblyline.al.common.result")
+log = logging.getLogger("assemblyline.svc.common.result")
 
 
 class AvHitSection(ResultSection):
