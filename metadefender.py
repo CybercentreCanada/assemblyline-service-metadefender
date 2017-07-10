@@ -36,7 +36,7 @@ class MetaDefender(ServiceBase):
     SERVICE_DEFAULT_CONFIG = {
         'BASE_URL': 'http://localhost:8008/',
         "MD_VERSION": 4,
-        'MD_TIMEOUT': 2
+        'MD_TIMEOUT': 40
     }
 
     def __init__(self, cfg=None):
@@ -48,7 +48,7 @@ class MetaDefender(ServiceBase):
         self.oldest_dat = now_as_local()
         self.session = None
         self._updater_id = "ENABLE_SERVICE_BLK_MSG"
-        self.timeout = cfg.get('MD_TIMEOUT', 2)
+        self.timeout = cfg.get('MD_TIMEOUT', (self.SERVICE_TIMEOUT*2)/3)
         self.init_vmap = False
 
     # noinspection PyUnresolvedReferences,PyGlobalUndefined
