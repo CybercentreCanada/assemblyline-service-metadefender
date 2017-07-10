@@ -35,7 +35,8 @@ class MetaDefender(ServiceBase):
     SERVICE_RAM_MB = 64
     SERVICE_DEFAULT_CONFIG = {
         'BASE_URL': 'http://localhost:8008/',
-        "MD_VERSION": 4
+        "MD_VERSION": 4,
+        'MD_TIMEOUT': 40
     }
 
     def __init__(self, cfg=None):
@@ -47,6 +48,8 @@ class MetaDefender(ServiceBase):
         self.oldest_dat = now_as_local()
         self.session = None
         self._updater_id = "ENABLE_SERVICE_BLK_MSG"
+        self.timeout = cfg.get('MD_TIMEOUT', (self.SERVICE_TIMEOUT*2)/3)
+        self.init_vmap = False
 
     # noinspection PyUnresolvedReferences,PyGlobalUndefined
     def import_service_deps(self):
@@ -56,7 +59,12 @@ class MetaDefender(ServiceBase):
     def start(self):
         self.log.debug("MetaDefender service started")
         self.session = requests.session()
-        self._get_version_map()
+        try:
+            self._get_version_map()
+            self.init_vmap = True
+        except Exception as e:
+            self.log.warn("Metadefender get_version_map failed with error code %s" % e.message)
+            self.init_vmap = False
 
     @staticmethod
     def _format_engine_name(name):
@@ -72,7 +80,11 @@ class MetaDefender(ServiceBase):
         oldest_dat = now()
 
         url = self.cfg.get('BASE_URL') + "stat/engines"
-        r = self.session.get(url=url)
+        try:
+            r = self.session.get(url=url, timeout=self.timeout)
+        except requests.exceptions.Timeout:
+            raise Exception("Metadefender service timeout.")
+
         engines = r.json()
 
         for engine in engines:
@@ -114,6 +126,10 @@ class MetaDefender(ServiceBase):
         return self.dat_hash
 
     def execute(self, request):
+        if self.init_vmap is False:
+            self._get_version_map()
+            self.init_vmap = True
+
         filename = request.download()
         response = self.scan_file(filename)
         result = self.parse_results(response)
@@ -122,14 +138,21 @@ class MetaDefender(ServiceBase):
 
     def get_scan_results_by_data_id(self, data_id):
         url = self.cfg.get('BASE_URL') + 'file/{0}'.format(data_id)
-        return self.session.get(url=url)
+        try:
+            return self.session.get(url=url, timeout=self.timeout)
+        except requests.exceptions.Timeout:
+            raise Exception("Metadefender service timeout.")
 
     def scan_file(self, filename):
         # Let's scan the file
         url = self.cfg.get('BASE_URL') + "file"
         with open(filename, 'rb') as f:
             sample = f.read()
-        r = self.session.post(url=url, data=sample)
+
+        try:
+            r = self.session.post(url=url, data=sample, timeout=self.timeout)
+        except requests.exceptions.Timeout:
+            raise Exception("Metadefender service timeout.")
 
         if r.status_code == requests.codes.ok:
             data_id = r.json()['data_id']
