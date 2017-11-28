@@ -2,6 +2,7 @@ import hashlib
 import logging
 import time
 
+from assemblyline.common.exceptions import RecoverableError
 from assemblyline.common.isotime import iso_to_local, iso_to_epoch, epoch_to_local, now, now_as_local
 from assemblyline.al.common.result import Result, ResultSection, Classification, SCORE
 from assemblyline.al.common.av_result import VirusHitTag
@@ -80,10 +81,27 @@ class MetaDefender(ServiceBase):
         oldest_dat = now()
 
         url = self.cfg.get('BASE_URL') + "stat/engines"
-        try:
-            r = self.session.get(url=url, timeout=self.timeout)
-        except requests.exceptions.Timeout:
-            raise Exception("Metadefender service timeout.")
+        done = False
+        retries = 0
+        max_retry = 5
+        r = None
+        while not done:
+            try:
+                r = self.session.get(url=url, timeout=self.timeout)
+                done = True
+            except requests.exceptions.Timeout:
+                if retries > max_retry:
+                    done = True
+            except requests.ConnectionError:
+                if retries > max_retry:
+                    done = True
+
+            if not r:
+                retries += 1
+                time.sleep(10)
+
+        if not r:
+            raise Exception("Metadefender server unaccessible.")
 
         engines = r.json()
 
@@ -142,6 +160,10 @@ class MetaDefender(ServiceBase):
             return self.session.get(url=url, timeout=self.timeout)
         except requests.exceptions.Timeout:
             raise Exception("Metadefender service timeout.")
+        except requests.ConnectionError:
+            # Metadefender unaccessible
+            time.sleep(10)
+            raise RecoverableError('Metadefender is currently unaccessible.')
 
     def scan_file(self, filename):
         # Let's scan the file
@@ -153,6 +175,10 @@ class MetaDefender(ServiceBase):
             r = self.session.post(url=url, data=sample, timeout=self.timeout)
         except requests.exceptions.Timeout:
             raise Exception("Metadefender service timeout.")
+        except requests.ConnectionError:
+            # Metadefender unaccessible
+            time.sleep(10)
+            raise RecoverableError('Metadefender is currently unaccessible.')
 
         if r.status_code == requests.codes.ok:
             data_id = r.json()['data_id']
@@ -160,10 +186,15 @@ class MetaDefender(ServiceBase):
                 r = self.get_scan_results_by_data_id(data_id=data_id)
                 if r.status_code != requests.codes.ok:
                     return r.json()
-                if r.json()['scan_results']['progress_percentage'] == 100:
-                    break
-                else:
-                    time.sleep(0.2)
+                try:
+                    if r.json()['scan_results']['progress_percentage'] == 100:
+                        break
+                    else:
+                        time.sleep(0.2)
+                except ValueError:
+                    # Metadefender unaccessible
+                    time.sleep(10)
+                    raise RecoverableError('Metadefender is currently unaccessible.')
 
         json_response = r.json()
 
