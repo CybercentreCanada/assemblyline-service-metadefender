@@ -191,7 +191,7 @@ class MetaDefender(ServiceBase):
                         break
                     else:
                         time.sleep(0.2)
-                except ValueError:
+                except KeyError:
                     # Metadefender unaccessible
                     time.sleep(10)
                     raise RecoverableError('Metadefender is currently unaccessible.')
