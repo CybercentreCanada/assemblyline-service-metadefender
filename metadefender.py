@@ -226,7 +226,7 @@ class MetaDefender(ServiceBase):
             while True:
                 r = self.get_scan_results_by_data_id(data_id=data_id, url=url)
                 if r.status_code != requests.codes.ok:
-					self.log.warn(r.json())
+                    self.log.warn(r.json())
                     return r.json()
                 try:
                     if r.json()['scan_results']['progress_percentage'] == 100:
@@ -242,7 +242,7 @@ class MetaDefender(ServiceBase):
             json_response = r.json()
             return json_response
         except:
-			self.log.warn(r.json())
+            self.log.warn(r.json())
 
     def parse_results(self, response):
         res = Result()
