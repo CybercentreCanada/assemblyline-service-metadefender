@@ -199,7 +199,7 @@ class MetaDefender(ServiceBase):
     
     # choose first node in list with shortest queue
     def choose_node(self):
-        node = md_node_queue_sizes.index(min(md_node_queue_sizes))
+        node = self.md_node_queue_sizes.index(min(self.md_node_queue_sizes))
         self.md_node_queue_sizes[node] += 1
         return node
         
