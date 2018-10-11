@@ -205,7 +205,7 @@ class MetaDefender(ServiceBase):
         
     def scan_file(self, filename):
         # Let's scan the file
-        node = choose_node()
+        node = self.choose_node()
         urls = self.cfg.get('MD_NODE_URLS')
         url = urls[node]
         with open(filename, 'rb') as f:
