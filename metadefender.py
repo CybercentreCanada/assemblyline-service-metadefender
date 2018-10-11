@@ -35,11 +35,10 @@ class MetaDefender(ServiceBase):
     SERVICE_CPU_CORES = 0.1
     SERVICE_RAM_MB = 64
     SERVICE_DEFAULT_CONFIG = {
-        'BASE_URL': 'http://localhost:8008/',
         "MD_VERSION": 4,
         'MD_TIMEOUT': 40,
-        'MD_NODE_URLS': ['http://172.22.232.59:8008/','http://172.22.232.60:8008/','http://172.22.232.61:8008/','http://172.22.232.62:8008/'],
-        'MD_NODE_API_KEYS': ['cb34de8c7aa9b7e95bb74f8a774dc0eb474c','363dc3f6a189cc476e806e5e5d3fdb6dbd3d','2e7a85c8bf14be814ddd14c928cb2a8a2bc9','8b5fc312a2f0c4c8a495a6e1df2d764b36fe']
+        'MD_NODE_URLS': ['http://localhost:8008/'],
+        'MD_NODE_API_KEYS': ['abcdefghijklmnopqrstuvwxyz']
     }
 
     def __init__(self, cfg=None):
@@ -84,7 +83,8 @@ class MetaDefender(ServiceBase):
         newest_dat = 0
         oldest_dat = now()
 
-        url = self.cfg.get('BASE_URL') + "stat/engines"
+        urls = self.cfg.get('MD_NODE_URLS') 
+        url = urls[0] + "stat/engines"
         done = False
         retries = 0
         max_retry = 5
@@ -153,7 +153,7 @@ class MetaDefender(ServiceBase):
             self.init_vmap = True
             
 		# update queue size every 10 seconds
-		if time.time() >= self.next_time:
+        if time.time() >= self.next_time:
 			self.next_time = time.time() + 10
 			get_queue_size()
 
@@ -163,8 +163,8 @@ class MetaDefender(ServiceBase):
         request.result = result
         request.set_service_context("Definition Time Range: %s - %s" % (self.oldest_dat, self.newest_dat))
 
-    def get_scan_results_by_data_id(self, data_id):
-        url = self.cfg.get('BASE_URL') + 'file/{0}'.format(data_id)
+    def get_scan_results_by_data_id(self, data_id, url):
+        url = url + 'file/{0}'.format(data_id)
         try:
             return self.session.get(url=url, timeout=self.timeout)
         except requests.exceptions.Timeout:
@@ -223,7 +223,7 @@ class MetaDefender(ServiceBase):
         if r.status_code == requests.codes.ok:
             data_id = r.json()['data_id']
             while True:
-                r = self.get_scan_results_by_data_id(data_id=data_id)
+                r = self.get_scan_results_by_data_id(data_id=data_id, url=url)
                 if r.status_code != requests.codes.ok:
                     return r.json()
                 try:
