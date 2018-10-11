@@ -52,7 +52,7 @@ class MetaDefender(ServiceBase):
         self._updater_id = "ENABLE_SERVICE_BLK_MSG"
         self.timeout = cfg.get('MD_TIMEOUT', (self.SERVICE_TIMEOUT*2)/3)
         self.init_vmap = False
-        self.md_node_queue_sizes = []
+        self.md_node_queue_sizes = [0] * len(self.cfg.get('MD_NODE_URLS'))
         self.next_time = 0
 
     # noinspection PyUnresolvedReferences,PyGlobalUndefined
@@ -193,9 +193,9 @@ class MetaDefender(ServiceBase):
                 raise RecoverableError('Metadefender is currently unaccessible.')
             
             if r.status_code == requests.codes.ok:
-                self.md_node_queue_sizes.append(r.json()['statuses'][0]['scan_queue'])
+                self.md_node_queue_sizes[i] = r.json()['statuses'][0]['scan_queue']
             else:
-                self.md_node_queue_sizes.append('offline')
+                self.md_node_queue_sizes[i] = 'offline'
                     
     
     # choose first node in list with shortest queue
