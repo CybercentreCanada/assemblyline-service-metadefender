@@ -175,6 +175,7 @@ class MetaDefender(ServiceBase):
             raise RecoverableError('Metadefender is currently unaccessible.')
     
     def get_queue_size(self):
+        self.md_node_queue_sizes = []
         urls = self.cfg.get('MD_NODE_URLS')
         api_keys = self.cfg.get('MD_NODE_API_KEYS')
         
@@ -192,9 +193,9 @@ class MetaDefender(ServiceBase):
                 raise RecoverableError('Metadefender is currently unaccessible.')
             
             if r.status_code == requests.codes.ok:
-                self.md_node_queue_sizes[i] = r.json()['statuses'][0]['scan_queue']
+                self.md_node_queue_sizes.append(r.json()['statuses'][0]['scan_queue'])
             else:
-                self.md_node_queue_sizes[i] = 'offline'
+                self.md_node_queue_sizes.append('offline')
                     
     
     # choose first node in list with shortest queue
