@@ -155,7 +155,7 @@ class MetaDefender(ServiceBase):
         # update queue size every 10 seconds
         if time.time() >= self.next_time:
             self.next_time = time.time() + 10
-            get_queue_size()
+            self.get_queue_size()
 
         filename = request.download()
         response = self.scan_file(filename)
@@ -175,11 +175,10 @@ class MetaDefender(ServiceBase):
             raise RecoverableError('Metadefender is currently unaccessible.')
     
     def get_queue_size(self):
-        self.md_node_queue_sizes = []
         urls = self.cfg.get('MD_NODE_URLS')
         api_keys = self.cfg.get('MD_NODE_API_KEYS')
         
-        for i in urls:
+        for i in range(len(urls)):
             url = urls[i] + "stat/nodes"
             api_key = api_keys[i]
             
@@ -208,7 +207,7 @@ class MetaDefender(ServiceBase):
         # Let's scan the file
         node = self.choose_node()
         urls = self.cfg.get('MD_NODE_URLS')
-        url = urls[node]
+        url = urls[node] + "file"
         with open(filename, 'rb') as f:
             sample = f.read()
 
@@ -224,6 +223,7 @@ class MetaDefender(ServiceBase):
         if r.status_code == requests.codes.ok:
             data_id = r.json()['data_id']
             while True:
+                url = urls[node]
                 r = self.get_scan_results_by_data_id(data_id=data_id, url=url)
                 if r.status_code != requests.codes.ok:
                     self.log.warn(r.json())
