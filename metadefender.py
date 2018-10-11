@@ -152,10 +152,10 @@ class MetaDefender(ServiceBase):
             self._get_version_map()
             self.init_vmap = True
             
-		# update queue size every 10 seconds
+        # update queue size every 10 seconds
         if time.time() >= self.next_time:
-			self.next_time = time.time() + 10
-			get_queue_size()
+            self.next_time = time.time() + 10
+            get_queue_size()
 
         filename = request.download()
         response = self.scan_file(filename)
@@ -173,36 +173,36 @@ class MetaDefender(ServiceBase):
             # Metadefender unaccessible
             time.sleep(10)
             raise RecoverableError('Metadefender is currently unaccessible.')
-	
-	def get_queue_size(self):
-		urls = self.cfg.get('MD_NODE_URLS')
-		api_keys = self.cfg.get('MD_NODE_API_KEYS')
-		
-		for i in urls:
-			url = urls[i] + "stat/nodes"
-			api_key = api_keys[i]
-			
-			try:
-				r = self.session.get(url=url, headers={'apikey':api_key}, timeout=self.timeout)
-			except requests.exceptions.Timeout:
-				raise Exception("Metadefender service timeout.")
-			except requests.ConnectionError:
-				# Metadefender unaccessible
-				time.sleep(10)
-				raise RecoverableError('Metadefender is currently unaccessible.')
-			
-			if r.status_code == requests.codes.ok:
-				self.md_node_queue_sizes[i] = r.json()['statuses'][0]['scan_queue']
-			else:
-				self.md_node_queue_sizes[i] = 'offline'
-					
-	
-	# choose first node in list with shortest queue
-	def choose_node(self):
-		node = md_node_queue_sizes.index(min(md_node_queue_sizes))
-		self.md_node_queue_sizes[node] += 1
-		return node
-		
+    
+    def get_queue_size(self):
+        urls = self.cfg.get('MD_NODE_URLS')
+        api_keys = self.cfg.get('MD_NODE_API_KEYS')
+        
+        for i in urls:
+            url = urls[i] + "stat/nodes"
+            api_key = api_keys[i]
+            
+            try:
+                r = self.session.get(url=url, headers={'apikey':api_key}, timeout=self.timeout)
+            except requests.exceptions.Timeout:
+                raise Exception("Metadefender service timeout.")
+            except requests.ConnectionError:
+                # Metadefender unaccessible
+                time.sleep(10)
+                raise RecoverableError('Metadefender is currently unaccessible.')
+            
+            if r.status_code == requests.codes.ok:
+                self.md_node_queue_sizes[i] = r.json()['statuses'][0]['scan_queue']
+            else:
+                self.md_node_queue_sizes[i] = 'offline'
+                    
+    
+    # choose first node in list with shortest queue
+    def choose_node(self):
+        node = md_node_queue_sizes.index(min(md_node_queue_sizes))
+        self.md_node_queue_sizes[node] += 1
+        return node
+        
     def scan_file(self, filename):
         # Let's scan the file
         node = choose_node()
