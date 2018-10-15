@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import time
+import random
 
 from assemblyline.common.exceptions import RecoverableError
 from assemblyline.common.isotime import iso_to_local, iso_to_epoch, epoch_to_local, now, now_as_local
@@ -35,10 +36,10 @@ class MetaDefender(ServiceBase):
     SERVICE_CPU_CORES = 0.1
     SERVICE_RAM_MB = 64
     SERVICE_DEFAULT_CONFIG = {
+        'BASE_URL': 'http://localhost:8008/',
         "MD_VERSION": 4,
         'MD_TIMEOUT': 40,
-        'MD_NODE_URLS': ['http://localhost:8008/'],
-        'MD_NODE_API_KEYS': ['abcdefghijklmnopqrstuvwxyz']
+        'MAX_MD_SCAN_TIME': 3
     }
 
     def __init__(self, cfg=None):
@@ -52,8 +53,8 @@ class MetaDefender(ServiceBase):
         self._updater_id = "ENABLE_SERVICE_BLK_MSG"
         self.timeout = cfg.get('MD_TIMEOUT', (self.SERVICE_TIMEOUT*2)/3)
         self.init_vmap = False
-        self.md_node_queue_sizes = [0] * len(self.cfg.get('MD_NODE_URLS'))
-        self.next_time = 0
+        self.md_nodes = []
+        self.current_md_node = 0
 
     # noinspection PyUnresolvedReferences,PyGlobalUndefined
     def import_service_deps(self):
@@ -62,6 +63,12 @@ class MetaDefender(ServiceBase):
 
     def start(self):
         self.log.debug("MetaDefender service started")
+        if type(self.cfg.get('BASE_URL')) != list:
+            self.md_nodes.append([self.cfg.get('BASE_URL'),0,0])
+        else:
+            for url in self.cfg.get('BASE_URL'):
+                self.md_active_nodes.append([url,0,0])
+
         self.session = requests.session()
         try:
             self._get_version_map()
@@ -83,8 +90,8 @@ class MetaDefender(ServiceBase):
         newest_dat = 0
         oldest_dat = now()
 
-        urls = self.cfg.get('MD_NODE_URLS') 
-        url = urls[0] + "stat/engines"
+        url = self.md_nodes[0][0] + "stat/engines"
+
         done = False
         retries = 0
         max_retry = 5
@@ -151,11 +158,6 @@ class MetaDefender(ServiceBase):
         if self.init_vmap is False:
             self._get_version_map()
             self.init_vmap = True
-            
-        # update queue size every 10 seconds
-        if time.time() >= self.next_time:
-            self.next_time = time.time() + 10
-            self.get_queue_size()
 
         filename = request.download()
         response = self.scan_file(filename)
@@ -163,8 +165,9 @@ class MetaDefender(ServiceBase):
         request.result = result
         request.set_service_context("Definition Time Range: %s - %s" % (self.oldest_dat, self.newest_dat))
 
-    def get_scan_results_by_data_id(self, data_id, url):
-        url = url + 'file/{0}'.format(data_id)
+    def get_scan_results_by_data_id(self, data_id, base_url):
+        url = base_url + 'file/{0}'.format(data_id)
+
         try:
             return self.session.get(url=url, timeout=self.timeout)
         except requests.exceptions.Timeout:
@@ -173,60 +176,53 @@ class MetaDefender(ServiceBase):
             # Metadefender unaccessible
             time.sleep(10)
             raise RecoverableError('Metadefender is currently unaccessible.')
-    
-    def get_queue_size(self):
-        urls = self.cfg.get('MD_NODE_URLS')
-        api_keys = self.cfg.get('MD_NODE_API_KEYS')
-        
-        for i in range(len(urls)):
-            url = urls[i] + "stat/nodes"
-            api_key = api_keys[i]
-            
-            try:
-                r = self.session.get(url=url, headers={'apikey':api_key}, timeout=self.timeout)
-            except requests.exceptions.Timeout:
-                raise Exception("Metadefender service timeout.")
-            except requests.ConnectionError:
-                # Metadefender unaccessible
-                time.sleep(10)
-                raise RecoverableError('Metadefender is currently unaccessible.')
-            
-            if r.status_code == requests.codes.ok:
-                self.md_node_queue_sizes[i] = r.json()['statuses'][0]['scan_queue']
+
+    def deactivate_node(self):
+        if len(self.md_nodes) > 1:
+            if self.md_nodes[self.current_md_node][1] <= 5:
+                self.md_nodes[self.current_md_node][2] = self.md_nodes[self.current_md_node][1]
+
+    def next_node(self):
+        if self.current_md_node == len(md_nodes)-1:
+            self.current_md_node = 0
+        else:
+            self.current_md_node += 1
+
+        done = False
+        while not done:
+            if self.md_nodes[self.current_md_node][2] == 0:
+                done = True
             else:
-                self.md_node_queue_sizes[i] = 'offline'
-                    
-    
-    # choose first node in list with shortest queue
-    def choose_node(self):
-        node = self.md_node_queue_sizes.index(min(self.md_node_queue_sizes))
-        self.md_node_queue_sizes[node] += 1
-        return node
-        
+                self.md_nodes[self.current_md_node][2] -= 1
+                self.current_md_node += 1
+
+            if self.current_md_node == len(md_nodes):
+                self.current_md_node = 0
+
     def scan_file(self, filename):
         # Let's scan the file
-        node = self.choose_node()
-        urls = self.cfg.get('MD_NODE_URLS')
-        url = urls[node] + "file"
+        base_url = self.md_nodes[self.current_md_node][0]
+        url = base_url + "file"
         with open(filename, 'rb') as f:
             sample = f.read()
 
         try:
+            start_time = time.time()
             r = self.session.post(url=url, data=sample, timeout=self.timeout)
         except requests.exceptions.Timeout:
+            self.deactivate_node()
             raise Exception("Metadefender service timeout.")
         except requests.ConnectionError:
             # Metadefender unaccessible
             time.sleep(10)
+            self.deactivate_node()
             raise RecoverableError('Metadefender is currently unaccessible.')
 
         if r.status_code == requests.codes.ok:
             data_id = r.json()['data_id']
             while True:
-                url = urls[node]
-                r = self.get_scan_results_by_data_id(data_id=data_id, url=url)
+                r = self.get_scan_results_by_data_id(data_id=data_id, base_url=base_url)
                 if r.status_code != requests.codes.ok:
-                    self.log.warn(r.json())
                     return r.json()
                 try:
                     if r.json()['scan_results']['progress_percentage'] == 100:
@@ -236,13 +232,20 @@ class MetaDefender(ServiceBase):
                 except KeyError:
                     # Metadefender unaccessible
                     time.sleep(10)
+                    self.deactivate_node()
                     raise RecoverableError('Metadefender is currently unaccessible.')
 
-        try:
-            json_response = r.json()
-            return json_response
-        except:
-            self.log.warn(r.json())
+            if ((time.time() - start_time) > self.cfg.get('MAX_MD_SCAN_TIME'):
+                self.deactivate_node()
+            else:
+                self.md_nodes[self.current_md_node][1] == 0
+                self.md_nodes[self.current_md_node][2] == 0
+
+        if len(self.md_nodes) > 1:
+            self.next_node()
+        json_response = r.json()
+
+        return json_response
 
     def parse_results(self, response):
         res = Result()
