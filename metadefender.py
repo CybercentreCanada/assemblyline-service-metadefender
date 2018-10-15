@@ -67,7 +67,7 @@ class MetaDefender(ServiceBase):
             self.md_nodes.append([self.cfg.get('BASE_URL'),0,0])
         else:
             for url in self.cfg.get('BASE_URL'):
-                self.md_active_nodes.append([url,0,0])
+                self.md_nodes.append([url,0,0])
 
         self.session = requests.session()
         try:
@@ -183,7 +183,7 @@ class MetaDefender(ServiceBase):
                 self.md_nodes[self.current_md_node][2] = self.md_nodes[self.current_md_node][1]
 
     def next_node(self):
-        if self.current_md_node == len(md_nodes)-1:
+        if self.current_md_node == len(self.md_nodes)-1:
             self.current_md_node = 0
         else:
             self.current_md_node += 1
@@ -196,7 +196,7 @@ class MetaDefender(ServiceBase):
                 self.md_nodes[self.current_md_node][2] -= 1
                 self.current_md_node += 1
 
-            if self.current_md_node == len(md_nodes):
+            if self.current_md_node == len(self.md_nodes):
                 self.current_md_node = 0
 
     def scan_file(self, filename):
@@ -235,7 +235,7 @@ class MetaDefender(ServiceBase):
                     self.deactivate_node()
                     raise RecoverableError('Metadefender is currently unaccessible.')
 
-            if ((time.time() - start_time) > self.cfg.get('MAX_MD_SCAN_TIME'):
+            if ((time.time() - start_time) > self.cfg.get('MAX_MD_SCAN_TIME')):
                 self.deactivate_node()
             else:
                 self.md_nodes[self.current_md_node][1] == 0
