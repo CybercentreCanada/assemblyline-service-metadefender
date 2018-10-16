@@ -180,6 +180,7 @@ class MetaDefender(ServiceBase):
     def deactivate_node(self):
         if len(self.md_nodes) > 1:
             if self.md_nodes[self.current_md_node][1] <= 5:
+                self.md_nodes[self.current_md_node][1] += 1
                 self.md_nodes[self.current_md_node][2] = self.md_nodes[self.current_md_node][1]
 
     def next_node(self):
