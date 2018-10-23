@@ -171,10 +171,13 @@ class MetaDefender(ServiceBase):
         try:
             return self.session.get(url=url, timeout=self.timeout)
         except requests.exceptions.Timeout:
+            self.deactivate_node()
             raise Exception("Metadefender service timeout.")
         except requests.ConnectionError:
             # Metadefender unaccessible
-            time.sleep(10)
+            if len(self.md_nodes) == 1:
+                time.sleep(5)
+            self.deactivate_node()
             raise RecoverableError('Metadefender is currently unaccessible.')
 
     def deactivate_node(self):
@@ -189,10 +192,9 @@ class MetaDefender(ServiceBase):
         else:
             self.current_md_node += 1
 
-        done = False
-        while not done:
+        while True:
             if self.md_nodes[self.current_md_node][2] == 0:
-                done = True
+                break
             else:
                 self.md_nodes[self.current_md_node][2] -= 1
                 self.current_md_node += 1
@@ -215,7 +217,8 @@ class MetaDefender(ServiceBase):
             raise Exception("Metadefender service timeout.")
         except requests.ConnectionError:
             # Metadefender unaccessible
-            time.sleep(10)
+            if len(self.md_nodes) == 1:
+                time.sleep(5)
             self.deactivate_node()
             raise RecoverableError('Metadefender is currently unaccessible.')
 
@@ -232,7 +235,8 @@ class MetaDefender(ServiceBase):
                         time.sleep(0.2)
                 except KeyError:
                     # Metadefender unaccessible
-                    time.sleep(10)
+                    if len(self.md_nodes) == 1:
+                        time.sleep(5)
                     self.deactivate_node()
                     raise RecoverableError('Metadefender is currently unaccessible.')
 
