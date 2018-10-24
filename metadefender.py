@@ -55,6 +55,7 @@ class MetaDefender(ServiceBase):
         self.init_vmap = False
         self.md_nodes = []
         self.current_md_node = 0
+        self.total_md_nodes = 0
 
     # noinspection PyUnresolvedReferences,PyGlobalUndefined
     def import_service_deps(self):
@@ -65,9 +66,11 @@ class MetaDefender(ServiceBase):
         self.log.debug("MetaDefender service started")
         if type(self.cfg.get('BASE_URL')) != list:
             self.md_nodes.append([self.cfg.get('BASE_URL'),0,0])
+            self.total_md_nodes = 1
         else:
             for url in self.cfg.get('BASE_URL'):
                 self.md_nodes.append([url,0,0])
+                self.total_md_nodes += 1
 
         self.session = requests.session()
         try:
@@ -175,7 +178,7 @@ class MetaDefender(ServiceBase):
             raise Exception("Metadefender service timeout.")
         except requests.ConnectionError:
             # Metadefender unaccessible
-            if len(self.md_nodes) == 1:
+            if self.total_md_nodes == 1:
                 time.sleep(5)
             self.deactivate_node()
             raise RecoverableError('Metadefender is currently unaccessible.')
@@ -187,7 +190,7 @@ class MetaDefender(ServiceBase):
                 self.md_nodes[self.current_md_node][2] = self.md_nodes[self.current_md_node][1]
 
     def next_node(self):
-        if self.current_md_node == len(self.md_nodes)-1:
+        if self.current_md_node == self.total_md_nodes-1:
             self.current_md_node = 0
         else:
             self.current_md_node += 1
@@ -199,7 +202,7 @@ class MetaDefender(ServiceBase):
                 self.md_nodes[self.current_md_node][2] -= 1
                 self.current_md_node += 1
 
-            if self.current_md_node == len(self.md_nodes):
+            if self.current_md_node == self.total_md_nodes:
                 self.current_md_node = 0
 
     def scan_file(self, filename):
@@ -217,7 +220,7 @@ class MetaDefender(ServiceBase):
             raise Exception("Metadefender service timeout.")
         except requests.ConnectionError:
             # Metadefender unaccessible
-            if len(self.md_nodes) == 1:
+            if self.total_md_nodes == 1:
                 time.sleep(5)
             self.deactivate_node()
             raise RecoverableError('Metadefender is currently unaccessible.')
@@ -235,7 +238,7 @@ class MetaDefender(ServiceBase):
                         time.sleep(0.2)
                 except KeyError:
                     # Metadefender unaccessible
-                    if len(self.md_nodes) == 1:
+                    if self.total_md_nodes == 1:
                         time.sleep(5)
                     self.deactivate_node()
                     raise RecoverableError('Metadefender is currently unaccessible.')
@@ -246,7 +249,7 @@ class MetaDefender(ServiceBase):
                 self.md_nodes[self.current_md_node][1] == 0
                 self.md_nodes[self.current_md_node][2] == 0
 
-        if len(self.md_nodes) > 1:
+        if self.total_md_nodes > 1:
             self.next_node()
         json_response = r.json()
 
