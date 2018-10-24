@@ -12,15 +12,15 @@ The MetaDefender service uses the MetaDefender Core API to send files to the ser
 
 **NOTE**: This service was developed with **MetaDefender Core v4**.
 
-To install Metadefender Core you can follow the instructions [here](https://onlinehelp.opswat.com/corev4/2.2._Installing_Metadefender.html). You can have multiple MetaDefender deployments if your environment expects large file loads.
+To install and activate Metadefender Core, you can follow the instructions [here](https://onlinehelp.opswat.com/corev4/2.2._Installing_Metadefender.html). You can have multiple MetaDefender deployments if your environment expects large file loads.
 
 Once MetaDefender has been installed and activated with your license, the following settings are recommended to improve the file scanning rate:
 
-* Turning off the following engines under **Inventory > Scan Engines**
+* Turning off the following engines under **Inventory > Technologies**
 	* Data sanitization engine 
 	* Archive engine
-* Cleaning up the scan database very frequently, which can be done using two methods:  
-	* By setting all the clean up options to the lowest time value under **Settings > Data Retention**
+* Frequently cleaning up the scan database using both of the following methods:  
+	* Setting all the data retention options to the lowest time value under **Settings > Data Retention**
 	* Using a scheduled task on your MetaDefender server, see [here](mdcore_install/install_notes.md) for instructions
 
 ## Service Options
