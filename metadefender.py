@@ -280,7 +280,7 @@ class MetaDefender(ServiceBase):
                 # File was not scanned or failed
                 elif subdict['scan_result_i'] == 10 or subdict['scan_result_i'] == 3:
                     score = SCORE.NULL
-                    title = '%s failed to scan the file' % av_name
+                    title = '%s failed to scan the file' % majorkey
                     body = "Engine: %s :: Definition: %s " % (engine['version'], engine['def_time'])
                     classification=Classification.UNRESTRICTED
                     
