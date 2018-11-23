@@ -25,6 +25,18 @@ class AvHitSection(ResultSection):
             classification=Classification.UNRESTRICTED
         )
 
+class AvErrorSection(ResultSection):
+    def __init__(self, av_name, engine, score):
+        title = '%s failed to scan the file' % av_name
+        body = ""
+        if engine:
+            body = "Engine: %s :: Definition: %s " % (engine['version'], engine['def_time'])
+        super(AvErrorSection, self).__init__(
+            title_text=title,
+            score=score,
+            body=body,
+            classification=Classification.UNRESTRICTED
+        )
 
 class MetaDefender(ServiceBase):
     SERVICE_CATEGORY = "Antivirus"
@@ -267,14 +279,18 @@ class MetaDefender(ServiceBase):
             scans = response.get('scan_details', response)
             for majorkey, subdict in sorted(scans.iteritems()):
                 score = SCORE.NULL
-                if subdict['scan_result_i'] == 1:
+                if subdict['scan_result_i'] == 1:           # File is infected
                     virus_name = subdict['threat_found']
                     if virus_name:
                         score = SCORE.SURE
-                elif subdict['scan_result_i'] == 2:
+                elif subdict['scan_result_i'] == 2:         # File is suspicious
                     virus_name = subdict['threat_found']
                     if virus_name:
                         score = SCORE.VHIGH
+                elif subdict['scan_result_i'] == 10 or subdict['scan_result_i'] == 3:         # File was not scanned or failed
+                    engine = self.engine_map[self._format_engine_name(majorkey)]
+                    av_hits.add_section(AvErrorSection(majorkey, engine, score))
+                    hit = True
 
                 if score:
                     virus_name = virus_name.replace("a variant of ", "")
@@ -282,7 +298,7 @@ class MetaDefender(ServiceBase):
                     res.append_tag(VirusHitTag(virus_name, context="scanner:%s" % majorkey))
                     av_hits.add_section(AvHitSection(majorkey, virus_name, engine, score))
                     hit = True
-
+                    
             if hit:
                 res.add_result(av_hits)
 
