@@ -258,7 +258,7 @@ class MetaDefender(ServiceBase):
     def parse_results(self, response):
         res = Result()
         response = response.get('scan_results', response)
-        virus_name = None
+        virus_name = ""
 
         if response is not None and response.get('progress_percentage') == 100:
             hit = False
@@ -267,31 +267,16 @@ class MetaDefender(ServiceBase):
             scans = response.get('scan_details', response)
             for majorkey, subdict in sorted(scans.iteritems()):
                 score = SCORE.NULL
-                # File is infected
                 if subdict['scan_result_i'] == 1:
                     virus_name = subdict['threat_found']
                     if virus_name:
                         score = SCORE.SURE
-                # File is suspicious 
                 elif subdict['scan_result_i'] == 2:
                     virus_name = subdict['threat_found']
                     if virus_name:
                         score = SCORE.VHIGH
-                # File was not scanned or failed
-                elif subdict['scan_result_i'] == 10 or subdict['scan_result_i'] == 3:
-                    score = SCORE.NULL
-                    title = '%s failed to scan the file' % majorkey
-                    engine = self.engine_map[self._format_engine_name(majorkey)]
-                    body = "Engine: %s :: Definition: %s " % (engine['version'], engine['def_time'])
-                    classification=Classification.UNRESTRICTED
-                    
-                    info_res = ResultSection(score=score,
-                                 title_text=title,
-                                 classification=classification)
-                    av_hits.add_section(info_res)
-                    res.add_result(av_hits)
-                    
-                if score and virus_name:
+
+                if score:
                     virus_name = virus_name.replace("a variant of ", "")
                     engine = self.engine_map[self._format_engine_name(majorkey)]
                     res.append_tag(VirusHitTag(virus_name, context="scanner:%s" % majorkey))
