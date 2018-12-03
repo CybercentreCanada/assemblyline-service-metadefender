@@ -288,7 +288,10 @@ class MetaDefender(ServiceBase):
                     if virus_name:
                         score = SCORE.VHIGH
                 elif subdict['scan_result_i'] == 10 or subdict['scan_result_i'] == 3:         # File was not scanned or failed
-                    engine = self.engine_map[self._format_engine_name(majorkey)]
+                    try:
+                        engine = self.engine_map[self._format_engine_name(majorkey)]
+                    else:
+                        engine = None
                     av_hits.add_section(AvErrorSection(majorkey, engine, score))
                     hit = True
 
