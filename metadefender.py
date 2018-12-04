@@ -290,7 +290,7 @@ class MetaDefender(ServiceBase):
                 elif subdict['scan_result_i'] == 10 or subdict['scan_result_i'] == 3:         # File was not scanned or failed
                     try:
                         engine = self.engine_map[self._format_engine_name(majorkey)]
-                    else:
+                    except:
                         engine = None
                     av_hits.add_section(AvErrorSection(majorkey, engine, score))
                     hit = True
