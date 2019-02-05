@@ -247,7 +247,7 @@ class MetaDefender(ServiceBase):
                     if r.json()['scan_results']['progress_percentage'] == 100:
                         break
                     else:
-                        time.sleep(0.2)
+                        time.sleep(0.5)
                 except KeyError:
                     # Metadefender unaccessible
                     if self.total_md_nodes == 1:
