@@ -13,10 +13,10 @@ log = logging.getLogger("assemblyline.svc.common.result")
 
 class AvHitSection(ResultSection):
     def __init__(self, av_name, virus_name, engine, score):
-        title = '%s identified the file as %s' % (av_name, virus_name)
+        title = '{} identified the file as {}'.format(av_name, virus_name)
         body = ""
         if engine:
-            body = "Engine: %s :: Definition: %s " % (engine['version'], engine['def_time'])
+            body = "Engine: {} :: Definition: {}".format(engine['version'], engine['def_time'])
         super(AvHitSection, self).__init__(
             title_text=title,
             score=score,
@@ -27,10 +27,10 @@ class AvHitSection(ResultSection):
 
 class AvErrorSection(ResultSection):
     def __init__(self, av_name, engine, score):
-        title = '%s failed to scan the file' % av_name
+        title = '{} failed to scan the file'.format(av_name)
         body = ""
         if engine:
-            body = "Engine: %s :: Definition: %s " % (engine['version'], engine['def_time'])
+            body = "Engine: {} :: Definition: {}".format(engine['version'], engine['def_time'])
         super(AvErrorSection, self).__init__(
             title_text=title,
             score=score,
@@ -93,7 +93,7 @@ class MetaDefender(ServiceBase):
         engine_count = 0
         for i in range(len(self.md_nodes)):
             self._get_version_map(i)
-            engine_count += self.
+            engine_count += self.md_nodes[i]['engine_count']
 
         if engine_count == 0:
             raise Exception("Unable to reach any MetaDefender node to get version map")
@@ -152,10 +152,12 @@ class MetaDefender(ServiceBase):
             self.md_nodes[i]['oldest_dat'] = epoch_to_local(oldest_dat)[:19]
         except requests.exceptions.Timeout:
             self.deactivate_node()
-            self.log.warning("MetaDefender node: {}, timed out while trying to get engine version map".format(self.md_nodes[self.current_md_node]['base_url']))
+            self.log.warning("MetaDefender node: {}, timed out while trying to get engine version map".format(
+                self.md_nodes[self.current_md_node]['base_url']))
         except requests.ConnectionError:
             self.deactivate_node()
-            self.log.warning("Unable to connect to MetaDefender node: {}, while trying to get engine version map".format(self.md_nodes[self.current_md_node]['base_url']))
+            self.log.warning("Unable to connect to MetaDefender node: {}, while trying to get engine version map".format(
+                    self.md_nodes[self.current_md_node]['base_url']))
 
     def get_tool_version(self):
         engine_maps = []
@@ -175,11 +177,13 @@ class MetaDefender(ServiceBase):
         try:
             response = self.scan_file(filename)
         except RecoverableError:
-            self.next_node()
             response = self.scan_file(filename)
         result = self.parse_results(response)
         request.result = result
-        request.set_service_context("Definition Time Range: {} - {}".format(self.md_nodes[self.current_md_node]['oldest_dat'], self.md_nodes[self.current_md_node]['newest_dat']))
+        request.set_service_context(
+            "Definition Time Range: {} - {}".format(self.md_nodes[self.current_md_node]['oldest_dat'],
+                                                    self.md_nodes[self.current_md_node]['newest_dat']))
+        self.next_node()
 
     def get_scan_results_by_data_id(self, data_id):
         url = self.md_nodes[self.current_md_node]['base_url'] + 'file/{0}'.format(data_id)
@@ -188,19 +192,25 @@ class MetaDefender(ServiceBase):
             return self.session.get(url=url, timeout=self.timeout)
         except requests.exceptions.Timeout:
             self.deactivate_node()
-            raise Exception("MetaDefender node: {}, timed out while trying to fetch scan results".format(self.md_nodes[self.current_md_node]['base_url']))
+            raise Exception("MetaDefender node: {}, timed out while trying to fetch scan results".format(
+                self.md_nodes[self.current_md_node]['base_url']))
         except requests.ConnectionError:
             # MetaDefender inaccessible
             if len(self.md_nodes) == 1:
                 time.sleep(5)
             self.deactivate_node()
-            raise RecoverableError("Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(self.md_nodes[self.current_md_node]['base_url']))
+            raise RecoverableError("Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(
+                self.md_nodes[self.current_md_node]['base_url']))
 
     def deactivate_node(self):
         if len(self.md_nodes) > 1:
-            if self.md_nodes[self.current_md_node]['timeout_count'] <= 5:
+            if self.md_nodes[self.current_md_node]['timeout_count'] <= 4:
                 self.md_nodes[self.current_md_node]['timeout_count'] += 1
                 self.md_nodes[self.current_md_node]['timeout'] = self.md_nodes[self.current_md_node]['timeout_count']
+            else:
+                self.md_nodes[self.current_md_node]['timeout'] = 5
+
+            self.next_node()
 
     def next_node(self):
         if len(self.md_nodes) == 1:
@@ -226,13 +236,16 @@ class MetaDefender(ServiceBase):
         try:
             r = self.session.post(url=url, data=data, timeout=self.timeout)
         except requests.exceptions.Timeout:
-            raise Exception("MetaDefender node: {}, timed out while trying to send file for scanning".format(self.md_nodes[self.current_md_node]['base_url']))
+            raise Exception("MetaDefender node: {}, timed out while trying to send file for scanning".format(
+                self.md_nodes[self.current_md_node]['base_url']))
         except requests.ConnectionError:
             # MetaDefender inaccessible
             if len(self.md_nodes) == 1:
                 time.sleep(5)
             self.deactivate_node()  # Deactivate the current node which had a connection error
-            raise RecoverableError("Unable to reach MetaDefender node: {}, while trying to send file for scanning".format(self.md_nodes[self.current_md_node]['base_url']))
+            raise RecoverableError(
+                "Unable to reach MetaDefender node: {}, while trying to send file for scanning".format(
+                    self.md_nodes[self.current_md_node]['base_url']))
 
         if r.status_code == requests.codes.ok:
             data_id = r.json()['data_id']
@@ -250,7 +263,9 @@ class MetaDefender(ServiceBase):
                     if len(self.md_nodes) == 1:
                         time.sleep(5)
                     self.deactivate_node()
-                    raise RecoverableError("Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(self.md_nodes[self.current_md_node]['base_url']))
+                    raise RecoverableError(
+                        "Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(
+                            self.md_nodes[self.current_md_node]['base_url']))
 
             self.md_nodes[self.current_md_node]['timeout_count'] = 0
             self.md_nodes[self.current_md_node]['timeout'] = 0
@@ -259,14 +274,14 @@ class MetaDefender(ServiceBase):
 
     def parse_results(self, response):
         res = Result()
-        response = response.get('scan_results', response)
+        scan_results = response.get('scan_results', response)
         virus_name = ""
 
-        if response is not None and response.get('progress_percentage') == 100:
+        if scan_results is not None and scan_results.get('progress_percentage') == 100:
             hit = False
             av_hits = ResultSection(title_text='Anti-Virus Detections')
 
-            scans = response.get('scan_details', response)
+            scans = scan_results.get('scan_details', scan_results)
             for majorkey, subdict in sorted(scans.iteritems()):
                 score = SCORE.NULL
                 if subdict['scan_result_i'] == 1:           # File is infected
@@ -288,16 +303,18 @@ class MetaDefender(ServiceBase):
                 if score:
                     virus_name = virus_name.replace("a variant of ", "")
                     engine = self.md_nodes[self.current_md_node]['engine_map'][self._format_engine_name(majorkey)]
-                    res.append_tag(VirusHitTag(virus_name, context="scanner:%s" % majorkey))
+                    res.append_tag(VirusHitTag(virus_name, context="scanner:{}".format(majorkey)))
                     av_hits.add_section(AvHitSection(majorkey, virus_name, engine, score))
                     hit = True
-                    
+
             if hit:
                 res.add_result(av_hits)
 
             file_size = response['file_info']['file_size']
-            queue_time = response['process_info']['processing_time']
+            queue_time = response['process_info']['queue_time']
             processing_time = response['process_info']['processing_time']
-            self.log.info("File successfully scanned by MetaDefender node: {}. File size: {}. Queue time: {}. Processing time: {}.".format(self.md_nodes[self.current_md_node]['base_url'], file_size, queue_time, processing_time))
+            self.log.info(
+                "File successfully scanned by MetaDefender node: {}. File size: {} B. Queue time: {} ms. Processing time: {} ms.".format(
+                    self.md_nodes[self.current_md_node]['base_url'], file_size, queue_time, processing_time))
 
         return res
