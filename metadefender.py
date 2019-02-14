@@ -71,23 +71,32 @@ class MetaDefender(ServiceBase):
     def start(self):
         self.log.debug("MetaDefender service started")
         base_urls = []
-        if type(self.cfg.get('BASE_URL')) != list:
+        if type(self.cfg.get('BASE_URL')) == str:
             base_urls = [self.cfg.get('BASE_URL')]
-        else:
+        elif type(self.cfg.get('BASE_URL')) == list:
             for base_url in self.cfg.get('BASE_URL'):
                 base_urls.append(base_url)
+        else:
+            raise Exception("Invalid format for BASE_URL service variable")
 
         for index, url in enumerate(base_urls):
             self.md_nodes[index] = {'base_url': url,
                                     'timeout_count': 0,
                                     'timeout': 0,
                                     'engine_map': {},
+                                    'engine_count': 0,
                                     'newest_dat': epoch_to_local(0),
                                     'oldest_dat': now_as_local()
                                     }
 
         self.session = requests.session()
-        self._get_version_map()
+        engine_count = 0
+        for i in range(len(self.md_nodes)):
+            self._get_version_map(i)
+            engine_count += self.
+
+        if engine_count == 0:
+            raise Exception("Unable to reach any MetaDefender node to get version map")
 
     @staticmethod
     def _format_engine_name(name):
@@ -96,36 +105,14 @@ class MetaDefender(ServiceBase):
             new_name = new_name[:-2]
         return new_name
 
-    def _get_version_map(self):
+    def _get_version_map(self, i):
         newest_dat = 0
         oldest_dat = now()
+        engine_list = []
+        url = self.md_nodes[i]['base_url'] + 'stat/engines'
 
-        for i in range(len(self.md_nodes)):
-            engine_list = []
-            url = self.md_nodes[i]['base_url'] + "stat/engines"
-
-            done = False
-            retries = 0
-            max_retry = 5
-            r = None
-            while not done:
-                try:
-                    r = self.session.get(url=url, timeout=self.timeout)
-                    done = True
-                except requests.exceptions.Timeout:
-                    if retries > max_retry:
-                        done = True
-                except requests.ConnectionError:
-                    if retries > max_retry:
-                        done = True
-
-                if not r:
-                    retries += 1
-                    time.sleep(10)
-
-            if not r:
-                continue
-
+        try:
+            r = self.session.get(url=url, timeout=self.timeout)
             engines = r.json()
 
             for engine in engines:
@@ -137,7 +124,8 @@ class MetaDefender(ServiceBase):
                 elif self.cfg.get("MD_VERSION") == 3:
                     name = self._format_engine_name(engine["eng_name"]).replace("scanengine", "")
                     version = engine['eng_ver']
-                    def_time = engine['def_time'].replace(" AM", "").replace(" PM", "").replace("/", "-").replace(" ", "T")
+                    def_time = engine['def_time'].replace(" AM", "").replace(" PM", "").replace("/", "-").replace(" ",
+                                                                                                                  "T")
                     def_time = def_time[6:10] + "-" + def_time[:5] + def_time[10:] + "Z"
                     etype = engine['eng_type']
                 else:
@@ -159,15 +147,15 @@ class MetaDefender(ServiceBase):
                 engine_list.append(version)
                 engine_list.append(def_time)
 
+            self.md_nodes[i]['engine_count'] = len(engines)
             self.md_nodes[i]['newest_dat'] = epoch_to_local(newest_dat)[:19]
             self.md_nodes[i]['oldest_dat'] = epoch_to_local(oldest_dat)[:19]
-
-        count = 0
-        for i in self.md_nodes.values():
-            count += len(i['engine_map'])
-
-        if count == 0:
-            raise Exception("Unable to reach any MetaDefender node to get version map")
+        except requests.exceptions.Timeout:
+            self.deactivate_node()
+            self.log.warning("MetaDefender node: {}, timed out while trying to get engine version map".format(self.md_nodes[self.current_md_node]['base_url']))
+        except requests.ConnectionError:
+            self.deactivate_node()
+            self.log.warning("Unable to connect to MetaDefender node: {}, while trying to get engine version map".format(self.md_nodes[self.current_md_node]['base_url']))
 
     def get_tool_version(self):
         engine_maps = []
@@ -177,34 +165,36 @@ class MetaDefender(ServiceBase):
         return hashlib.md5("".join(engine_maps)).hexdigest()
 
     def execute(self, request):
-        if len(self.md_nodes[self.current_md_node]['engine_map']) == 0:
-            try:
-                self._get_version_map()
-            except:
+        if self.md_nodes[self.current_md_node]['engine_count'] == 0:
+            self._get_version_map(self.current_md_node)
+            self.log.info("Getting version map from execute() function")
+            if self.md_nodes[self.current_md_node]['engine_count'] == 0:
                 self.deactivate_node()
 
         filename = request.download()
-        response = self.scan_file(filename)
+        try:
+            response = self.scan_file(filename)
+        except RecoverableError:
+            self.next_node()
+            response = self.scan_file(filename)
         result = self.parse_results(response)
         request.result = result
-        request.set_service_context("Definition Time Range: %s - %s" % (self.md_nodes[self.current_md_node]['oldest_dat'],
-                                                                        self.md_nodes[self.current_md_node]['newest_dat']))
+        request.set_service_context("Definition Time Range: {} - {}".format(self.md_nodes[self.current_md_node]['oldest_dat'], self.md_nodes[self.current_md_node]['newest_dat']))
 
     def get_scan_results_by_data_id(self, data_id):
-        base_url = self.md_nodes[self.current_md_node]['base_url']
-        url = base_url + 'file/{0}'.format(data_id)
+        url = self.md_nodes[self.current_md_node]['base_url'] + 'file/{0}'.format(data_id)
 
         try:
             return self.session.get(url=url, timeout=self.timeout)
         except requests.exceptions.Timeout:
             self.deactivate_node()
-            raise Exception("MetaDefender node (%s) timeout" % self.md_nodes[self.current_md_node]['base_url'])
+            raise Exception("MetaDefender node: {}, timed out while trying to fetch scan results".format(self.md_nodes[self.current_md_node]['base_url']))
         except requests.ConnectionError:
             # MetaDefender inaccessible
             if len(self.md_nodes) == 1:
                 time.sleep(5)
             self.deactivate_node()
-            raise RecoverableError("Unable to reach MetaDefender node (%s)" % self.md_nodes[self.current_md_node]['base_url'])
+            raise RecoverableError("Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(self.md_nodes[self.current_md_node]['base_url']))
 
     def deactivate_node(self):
         if len(self.md_nodes) > 1:
@@ -213,40 +203,36 @@ class MetaDefender(ServiceBase):
                 self.md_nodes[self.current_md_node]['timeout'] = self.md_nodes[self.current_md_node]['timeout_count']
 
     def next_node(self):
-        if self.current_md_node == len(self.md_nodes)-1:
-            self.current_md_node = 0
-        else:
-            self.current_md_node += 1
+        if len(self.md_nodes) == 1:
+            return
 
         while True:
+            if self.current_md_node == len(self.md_nodes) - 1:
+                self.current_md_node = 0
+            else:
+                self.current_md_node += 1
+
             if self.md_nodes[self.current_md_node]['timeout'] == 0:
                 break
             else:
                 self.md_nodes[self.current_md_node]['timeout'] -= 1
-                self.current_md_node += 1
-
-            if self.current_md_node == len(self.md_nodes):
-                self.current_md_node = 0
 
     def scan_file(self, filename):
         # Let's scan the file
-        base_url = self.md_nodes[self.current_md_node]['base_url']
-        url = base_url + "file"
+        url = self.md_nodes[self.current_md_node]['base_url'] + 'file'
         with open(filename, 'rb') as f:
-            sample = f.read()
+            data = f.read()
 
         try:
-            start_time = time.time()
-            r = self.session.post(url=url, data=sample, timeout=self.timeout)
+            r = self.session.post(url=url, data=data, timeout=self.timeout)
         except requests.exceptions.Timeout:
-            self.deactivate_node()
-            raise Exception("MetaDefender node (%s) timeout" % self.md_nodes[self.current_md_node]['base_url'])
+            raise Exception("MetaDefender node: {}, timed out while trying to send file for scanning".format(self.md_nodes[self.current_md_node]['base_url']))
         except requests.ConnectionError:
             # MetaDefender inaccessible
             if len(self.md_nodes) == 1:
                 time.sleep(5)
-            self.deactivate_node()
-            raise RecoverableError("Unable to reach MetaDefender node (%s)" % self.md_nodes[self.current_md_node]['base_url'])
+            self.deactivate_node()  # Deactivate the current node which had a connection error
+            raise RecoverableError("Unable to reach MetaDefender node: {}, while trying to send file for scanning".format(self.md_nodes[self.current_md_node]['base_url']))
 
         if r.status_code == requests.codes.ok:
             data_id = r.json()['data_id']
@@ -264,19 +250,12 @@ class MetaDefender(ServiceBase):
                     if len(self.md_nodes) == 1:
                         time.sleep(5)
                     self.deactivate_node()
-                    raise RecoverableError("Unable to reach MetaDefender node (%s)" % self.md_nodes[self.current_md_node]['base_url'])
+                    raise RecoverableError("Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(self.md_nodes[self.current_md_node]['base_url']))
 
-            if (time.time() - start_time) > self.cfg.get('MAX_MD_SCAN_TIME'):
-                self.deactivate_node()
-            else:
-                self.md_nodes[self.current_md_node]['timeout_count'] = 0
-                self.md_nodes[self.current_md_node]['timeout'] = 0
+            self.md_nodes[self.current_md_node]['timeout_count'] = 0
+            self.md_nodes[self.current_md_node]['timeout'] = 0
 
-        if len(self.md_nodes) > 1:
-            self.next_node()
-        json_response = r.json()
-
-        return json_response
+        return r.json()
 
     def parse_results(self, response):
         res = Result()
@@ -315,5 +294,10 @@ class MetaDefender(ServiceBase):
                     
             if hit:
                 res.add_result(av_hits)
+
+            file_size = response['file_info']['file_size']
+            queue_time = response['process_info']['processing_time']
+            processing_time = response['process_info']['processing_time']
+            self.log.info("File successfully scanned by MetaDefender node: {}. File size: {}. Queue time: {}. Processing time: {}.".format(self.md_nodes[self.current_md_node]['base_url'], file_size, queue_time, processing_time))
 
         return res
