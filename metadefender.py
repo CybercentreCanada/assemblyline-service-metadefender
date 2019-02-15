@@ -294,11 +294,7 @@ class MetaDefender(ServiceBase):
                         score = SCORE.VHIGH
                 elif subdict['scan_result_i'] == 10 or subdict['scan_result_i'] == 3:   # File was not scanned or failed
                     try:
-<<<<<<< HEAD
-                        engine = self.engine_map[self._format_engine_name(majorkey)]
-=======
                         engine = self.md_nodes[self.current_md_node]['engine_map'][self._format_engine_name(majorkey)]
->>>>>>> remotes/origin/AL-13-scale-metadefender-to-ours-needs
                     except:
                         engine = None
                     av_hits.add_section(AvErrorSection(majorkey, engine, score))
