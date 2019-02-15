@@ -85,6 +85,7 @@ class MetaDefender(ServiceBase):
                                     'timeout': 0,
                                     'engine_map': {},
                                     'engine_count': 0,
+                                    'engine_list': "default",
                                     'newest_dat': epoch_to_local(0),
                                     'oldest_dat': now_as_local()
                                     }
@@ -150,6 +151,7 @@ class MetaDefender(ServiceBase):
             self.md_nodes[i]['engine_count'] = len(engines)
             self.md_nodes[i]['newest_dat'] = epoch_to_local(newest_dat)[:19]
             self.md_nodes[i]['oldest_dat'] = epoch_to_local(oldest_dat)[:19]
+            self.md_nodes[i]['engine_list'] = "".join(engine_list)
         except requests.exceptions.Timeout:
             self.deactivate_node()
             self.log.warning("MetaDefender node: {}, timed out while trying to get engine version map".format(
@@ -160,11 +162,10 @@ class MetaDefender(ServiceBase):
                     self.md_nodes[self.current_md_node]['base_url']))
 
     def get_tool_version(self):
-        engine_maps = []
+        engine_lists = ""
         for i in range(len(self.md_nodes)):
-            engine_maps.append(self.md_nodes[i]['engine_map'])
-
-        return hashlib.md5("".join(engine_maps)).hexdigest()
+            engine_lists += self.md_nodes[i]['engine_list']
+        return hashlib.md5(engine_lists).hexdigest()
 
     def execute(self, request):
         if self.md_nodes[self.current_md_node]['engine_count'] == 0:
