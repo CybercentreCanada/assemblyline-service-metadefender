@@ -283,6 +283,7 @@ class MetaDefender(ServiceBase):
             av_hits = ResultSection(title_text='Anti-Virus Detections')
 
             scans = scan_results.get('scan_details', scan_results)
+            av_scan_times = []
             for majorkey, subdict in sorted(scans.iteritems()):
                 score = SCORE.NULL
                 if subdict['scan_result_i'] == 1:           # File is infected
@@ -308,6 +309,9 @@ class MetaDefender(ServiceBase):
                     av_hits.add_section(AvHitSection(majorkey, virus_name, engine, score))
                     hit = True
 
+                av_scan_times.append(self._format_engine_name(majorkey))
+                av_scan_times.append(subdict['scan_time'])
+
             if hit:
                 res.add_result(av_hits)
 
@@ -315,7 +319,7 @@ class MetaDefender(ServiceBase):
             queue_time = response['process_info']['queue_time']
             processing_time = response['process_info']['processing_time']
             self.log.info(
-                "File successfully scanned by MetaDefender node: {}. File size: {} B. Queue time: {} ms. Processing time: {} ms.".format(
-                    self.md_nodes[self.current_md_node]['base_url'], file_size, queue_time, processing_time))
+                "File successfully scanned by MetaDefender node: {}. File size: {} B. Queue time: {} ms. Processing time: {} ms. AV scan times: {}".format(
+                    self.md_nodes[self.current_md_node]['base_url'], file_size, queue_time, processing_time, str(av_scan_times)))
 
         return res
