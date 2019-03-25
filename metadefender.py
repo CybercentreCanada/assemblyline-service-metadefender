@@ -87,7 +87,9 @@ class MetaDefender(ServiceBase):
                                     'engine_count': 0,
                                     'engine_list': "default",
                                     'newest_dat': epoch_to_local(0),
-                                    'oldest_dat': now_as_local()
+                                    'oldest_dat': now_as_local(),
+                                    'queue_times': [],
+                                    'average_queue_time': 0
                                     }
 
         self.session = requests.session()
@@ -184,7 +186,14 @@ class MetaDefender(ServiceBase):
         request.set_service_context(
             "Definition Time Range: {} - {}".format(self.md_nodes[self.current_md_node]['oldest_dat'],
                                                     self.md_nodes[self.current_md_node]['newest_dat']))
-        self.next_node()
+
+        if len(self.md_nodes[self.current_md_node]['queue_times']) % 20 == 0:
+            # Calculate average queue time
+            self.md_nodes[self.current_md_node]['average_queue_time'] = sum(
+                self.md_nodes[self.current_md_node]['queue_times']) / len(self.md_nodes[self.current_md_node]['queue_times'])
+
+            # Check to see if a node with lower queue time is available
+            self.next_node()
 
     def get_scan_results_by_data_id(self, data_id):
         url = self.md_nodes[self.current_md_node]['base_url'] + 'file/{0}'.format(data_id)
@@ -217,6 +226,9 @@ class MetaDefender(ServiceBase):
         if len(self.md_nodes) == 1:
             return
 
+        # Close the requests session before moving on to select new node
+        self.session.close()
+
         while True:
             if self.current_md_node == len(self.md_nodes) - 1:
                 self.current_md_node = 0
@@ -227,6 +239,17 @@ class MetaDefender(ServiceBase):
                 break
             else:
                 self.md_nodes[self.current_md_node]['timeout'] -= 1
+
+        # Find the node with the lowest average queue time
+        fastest_node = 0
+        for i in range(len(self.md_nodes)):
+            if self.md_nodes[i]['average_queue_time'] < self.md_nodes[fastest_node]['average_queue_time']:
+                fastest_node = i
+
+        if fastest_node == self.current_md_node:
+            return
+        else:
+            self.next_node()
 
     def scan_file(self, filename):
         # Let's scan the file
@@ -321,5 +344,8 @@ class MetaDefender(ServiceBase):
             self.log.info(
                 "File successfully scanned by MetaDefender node: {}. File size: {} B. Queue time: {} ms. Processing time: {} ms. AV scan times: {}".format(
                     self.md_nodes[self.current_md_node]['base_url'], file_size, queue_time, processing_time, str(av_scan_times)))
+
+            # Add the queue time to a list, which will be later used to calculate average queue time
+            self.md_nodes[self.current_md_node]['queue_times'].append(queue_time)
 
         return res
