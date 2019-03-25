@@ -207,21 +207,20 @@ class MetaDefender(ServiceBase):
             self.new_node(force=False)
 
     def get_scan_results_by_data_id(self, data_id):
-        url = self.nodes[self.current_node]['base_url'] + 'file/{0}'.format(data_id)
+        url = self.current_node + 'file/{0}'.format(data_id)
 
         try:
             return self.session.get(url=url, timeout=self.timeout)
         except requests.exceptions.Timeout:
             self.new_node(force=True)
-            raise Exception("MetaDefender node: {}, timed out while trying to fetch scan results".format(
-                self.nodes[self.current_node]['base_url']))
+            raise Exception("MetaDefender node: {}, timed out while trying to fetch scan results".format(self.current_node))
         except requests.ConnectionError:
             # MetaDefender inaccessible
             if len(self.nodes) == 1:
                 time.sleep(5)
             self.new_node(force=True)
             raise RecoverableError("Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(
-                self.nodes[self.current_node]['base_url']))
+                self.current_node))
 
     def new_node(self, force):
         if len(self.nodes) == 1:
@@ -252,7 +251,7 @@ class MetaDefender(ServiceBase):
 
     def scan_file(self, filename):
         # Let's scan the file
-        url = self.nodes[self.current_node]['base_url'] + 'file'
+        url = self.current_node + 'file'
         with open(filename, 'rb') as f:
             data = f.read()
 
@@ -260,7 +259,7 @@ class MetaDefender(ServiceBase):
             r = self.session.post(url=url, data=data, timeout=self.timeout)
         except requests.exceptions.Timeout:
             raise Exception("MetaDefender node: {}, timed out while trying to send file for scanning".format(
-                self.nodes[self.current_node]['base_url']))
+                self.current_node))
         except requests.ConnectionError:
             # MetaDefender inaccessible
             if len(self.nodes) == 1:
@@ -268,7 +267,7 @@ class MetaDefender(ServiceBase):
             self.new_node(force=True)  # Deactivate the current node which had a connection error
             raise RecoverableError(
                 "Unable to reach MetaDefender node: {}, while trying to send file for scanning".format(
-                    self.nodes[self.current_node]['base_url']))
+                    self.current_node))
 
         if r.status_code == requests.codes.ok:
             data_id = r.json()['data_id']
@@ -288,7 +287,7 @@ class MetaDefender(ServiceBase):
                     self.new_node(force=True)
                     raise RecoverableError(
                         "Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(
-                            self.nodes[self.current_node]['base_url']))
+                            self.current_node))
 
             self.nodes[self.current_node]['timeout_count'] = 0
             self.nodes[self.current_node]['timeout'] = 0
@@ -342,7 +341,7 @@ class MetaDefender(ServiceBase):
             processing_time = response['process_info']['processing_time']
             self.log.info(
                 "File successfully scanned by MetaDefender node: {}. File size: {} B. Queue time: {} ms. Processing time: {} ms. AV scan times: {}".format(
-                    self.nodes[self.current_node]['base_url'], file_size, queue_time, processing_time, str(av_scan_times)))
+                    self.current_node, file_size, queue_time, processing_time, str(av_scan_times)))
 
             # Add the queue time to a list, which will be later used to calculate average queue time
             self.nodes[self.current_node]['queue_times'].append(queue_time)
