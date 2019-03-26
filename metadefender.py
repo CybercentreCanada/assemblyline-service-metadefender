@@ -182,11 +182,14 @@ class MetaDefender(ServiceBase):
         return hashlib.md5(engine_lists).hexdigest()
 
     def execute(self, request):
-        if self.nodes[self.current_node]['engine_count'] == 0:
-            self._get_version_map(self.current_node)
-            self.log.info("Getting version map from execute() function")
+        while True:
             if self.nodes[self.current_node]['engine_count'] == 0:
-                self.deactivate_node()
+                self._get_version_map(self.current_node)
+                self.log.info("Getting version map from execute() function")
+                if self.nodes[self.current_node]['engine_count'] == 0:
+                    self.new_node(force=True)
+            else:
+                break
 
         filename = request.download()
         try:
