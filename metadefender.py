@@ -64,7 +64,6 @@ class MetaDefender(ServiceBase):
         self.timeout = cfg.get('MD_TIMEOUT', (self.SERVICE_TIMEOUT*2)/3)
         self.nodes = {}
         self.current_node = None
-        self.last_node = None
         self.start_time = None
 
     # noinspection PyUnresolvedReferences,PyGlobalUndefined
@@ -170,7 +169,8 @@ class MetaDefender(ServiceBase):
             self.nodes[node]['engine_list'] = "".join(engine_list)
         except requests.exceptions.Timeout:
             self.new_node(force=True)
-            self.log.warning("MetaDefender node: {}, timed out while trying to get engine version map".format(node))
+            raise Exception("MetaDefender node: {}, timed out after {}s while trying to get engine version map".format(
+                node, self.timeout))
         except requests.ConnectionError:
             self.new_node(force=True)
             self.log.warning("Unable to connect to MetaDefender node: {}, while trying to get engine version map".format(node))
@@ -213,17 +213,18 @@ class MetaDefender(ServiceBase):
             return self.session.get(url=url, timeout=self.timeout)
         except requests.exceptions.Timeout:
             self.new_node(force=True)
-            raise Exception("MetaDefender node: {}, timed out while trying to fetch scan results".format(self.current_node))
+            raise Exception("MetaDefender node: {}, timed out after {}s while trying to fetch scan results".format(
+                self.current_node, self.timeout))
+
         except requests.ConnectionError:
             # MetaDefender inaccessible
-            if len(self.nodes) == 1:
-                time.sleep(5)
             self.new_node(force=True)
             raise RecoverableError("Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(
                 self.current_node))
 
     def new_node(self, force):
         if len(self.nodes) == 1:
+            time.sleep(5)
             return
 
         # Close the requests session before moving on to select new node
@@ -258,12 +259,9 @@ class MetaDefender(ServiceBase):
         try:
             r = self.session.post(url=url, data=data, timeout=self.timeout)
         except requests.exceptions.Timeout:
-            raise Exception("MetaDefender node: {}, timed out while trying to send file for scanning".format(
-                self.current_node))
+            raise Exception("MetaDefender node: {}, timed out after {}s while trying to send file for scanning".format(self.current_node, self.timeout))
         except requests.ConnectionError:
             # MetaDefender inaccessible
-            if len(self.nodes) == 1:
-                time.sleep(5)
             self.new_node(force=True)  # Deactivate the current node which had a connection error
             raise RecoverableError(
                 "Unable to reach MetaDefender node: {}, while trying to send file for scanning".format(
@@ -282,8 +280,6 @@ class MetaDefender(ServiceBase):
                         time.sleep(0.5)
                 except KeyError:
                     # MetaDefender inaccessible
-                    if len(self.nodes) == 1:
-                        time.sleep(5)
                     self.new_node(force=True)
                     raise RecoverableError(
                         "Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(
