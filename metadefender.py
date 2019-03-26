@@ -169,7 +169,7 @@ class MetaDefender(ServiceBase):
             self.nodes[node]['engine_list'] = "".join(engine_list)
         except requests.exceptions.Timeout:
             self.new_node(force=True)
-            raise Exception("MetaDefender node: {}, timed out after {}s while trying to get engine version map".format(
+            self.log.warning("MetaDefender node: {}, timed out after {}s while trying to get engine version map".format(
                 node, self.timeout))
         except requests.ConnectionError:
             self.new_node(force=True)
