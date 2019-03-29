@@ -108,6 +108,7 @@ class MetaDefender(ServiceBase):
             while True:
                 self.current_node = random.choice(list(self.nodes.keys()))
                 if self.nodes[self.current_node]['engine_count'] >= 1:
+                    self.log.info("MetaDefender node: {}, chosen at launch".format(self.current_node))
                     break
 
         # Start the global timer
@@ -205,7 +206,6 @@ class MetaDefender(ServiceBase):
         elapsed_time = self.start_time - time.time()
         if elapsed_time >= self.cfg.get('MAX_NODE_TIME'):
             self.new_node(force=True)
-            self.start_time = time.time()
         elif elapsed_time >= self.cfg.get('MIN_NODE_TIME'):
             self.new_node(force=False)
 
@@ -235,22 +235,24 @@ class MetaDefender(ServiceBase):
 
         if self.nodes[self.current_node]['file_count'] > 1:
             average = sum(self.nodes[self.current_node]['queue_times']) / self.nodes[self.current_node]['file_count']
-            if force:
-                while True:
-                    temp_node = random.choice(list(self.nodes.keys()))
-                    if temp_node != self.current_node:
+            while True:
+                temp_node = random.choice(list(self.nodes.keys()))
+                if temp_node != self.current_node:
+                    if force:
+                        self.log.info("Changed MetaDefender node from: {}, to: {}".format(self.current_node, temp_node))
                         self.nodes[self.current_node]['average_queue_time'] = average
                         self.nodes[self.current_node]['file_count'] = 0
                         self.current_node = temp_node
+                        self.start_time = time.time()
                         return
-            else:
-                while True:
-                    temp_node = random.choice(list(self.nodes.keys()))
-                    if temp_node != self.current_node:
+                    else:
+                        # Only change to new node if the current node's average queue time is larger than the new node
                         if average > self.nodes[temp_node]['average_queue_time']:
+                            self.log.info("Changed MetaDefender node from: {}, to: {}".format(self.current_node, temp_node))
                             self.nodes[self.current_node]['average_queue_time'] = average
                             self.nodes[self.current_node]['file_count'] = 0
                             self.current_node = temp_node
+                            self.start_time = time.time()
                         return
 
     def scan_file(self, filename):
