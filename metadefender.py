@@ -83,6 +83,7 @@ class MetaDefender(ServiceBase):
         else:
             raise Exception("Invalid format for BASE_URL service variable")
 
+        # Initialize a list of all nodes with default data
         for index, url in enumerate(base_urls):
             self.nodes[url] = {'engine_map': {},
                                'engine_count': 0,
@@ -94,6 +95,7 @@ class MetaDefender(ServiceBase):
                                'average_queue_time': 0
                                }
 
+        # Get version map for all of the nodes
         self.session = requests.Session()
         engine_count = 0
         for node in self.nodes.keys():
@@ -107,9 +109,13 @@ class MetaDefender(ServiceBase):
         if not self.current_node:
             while True:
                 self.current_node = random.choice(list(self.nodes.keys()))
+
+                # Check to see if the chosen node has a version map, else try to get version map again
                 if self.nodes[self.current_node]['engine_count'] >= 1:
                     self.log.info("MetaDefender node: {}, chosen at launch".format(self.current_node))
                     break
+                else:
+                    self._get_version_map(self.current_node)
 
         # Start the global timer
         if not self.start_time:
@@ -169,11 +175,9 @@ class MetaDefender(ServiceBase):
             self.nodes[node]['oldest_dat'] = epoch_to_local(oldest_dat)[:19]
             self.nodes[node]['engine_list'] = "".join(engine_list)
         except requests.exceptions.Timeout:
-            self.new_node(force=True)
             self.log.warning("MetaDefender node: {}, timed out after {}s while trying to get engine version map".format(
                 node, self.timeout))
         except requests.ConnectionError:
-            self.new_node(force=True)
             self.log.warning("Unable to connect to MetaDefender node: {}, while trying to get engine version map".format(node))
 
     def get_tool_version(self):
@@ -183,6 +187,7 @@ class MetaDefender(ServiceBase):
         return hashlib.md5(engine_lists).hexdigest()
 
     def execute(self, request):
+        # Check that the current node has a version map
         while True:
             if self.nodes[self.current_node]['engine_count'] == 0:
                 self._get_version_map(self.current_node)
@@ -203,6 +208,7 @@ class MetaDefender(ServiceBase):
             "Definition Time Range: {} - {}".format(self.nodes[self.current_node]['oldest_dat'],
                                                     self.nodes[self.current_node]['newest_dat']))
 
+        # Compare queue time of current node with new random node after a minimum run time on current node
         elapsed_time = self.start_time - time.time()
         if elapsed_time >= self.cfg.get('MAX_NODE_TIME'):
             self.new_node(force=True)
@@ -252,7 +258,9 @@ class MetaDefender(ServiceBase):
                             self.nodes[self.current_node]['average_queue_time'] = average
                             self.nodes[self.current_node]['file_count'] = 0
                             self.current_node = temp_node
-                            self.start_time = time.time()
+
+                        # Reset the start time
+                        self.start_time = time.time()
                         return
 
     def scan_file(self, filename):
