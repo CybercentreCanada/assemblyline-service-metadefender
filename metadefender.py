@@ -221,17 +221,16 @@ class MetaDefender(ServiceBase):
         try:
             return self.session.get(url=url, timeout=self.timeout)
         except requests.exceptions.Timeout:
-            self.new_node(force=True)
+            self.new_node(force=True, reset_queue=True)
             raise Exception("MetaDefender node: {}, timed out after {}s while trying to fetch scan results".format(
                 self.current_node, self.timeout))
-
         except requests.ConnectionError:
             # MetaDefender inaccessible
-            self.new_node(force=True)
+            self.new_node(force=True, reset_queue=True)
             raise RecoverableError("Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(
                 self.current_node))
 
-    def new_node(self, force):
+    def new_node(self, force, reset_queue=False):
         if len(self.nodes) == 1:
             time.sleep(5)
             return
@@ -241,13 +240,19 @@ class MetaDefender(ServiceBase):
 
         if self.nodes[self.current_node]['file_count'] > 1:
             average = sum(self.nodes[self.current_node]['queue_times']) / self.nodes[self.current_node]['file_count']
+
+            # Reset the average queue time, when connection or timeout error
+            if reset_queue:
+                self.nodes[self.current_node]['average_queue_time'] = 0
+            else:
+                self.nodes[self.current_node]['average_queue_time'] = average
+            self.nodes[self.current_node]['file_count'] = 0
+
             while True:
                 temp_node = random.choice(list(self.nodes.keys()))
                 if temp_node != self.current_node:
                     if force:
                         self.log.info("Changed MetaDefender node from: {}, to: {}".format(self.current_node, temp_node))
-                        self.nodes[self.current_node]['average_queue_time'] = average
-                        self.nodes[self.current_node]['file_count'] = 0
                         self.current_node = temp_node
                         self.start_time = time.time()
                         return
@@ -255,8 +260,6 @@ class MetaDefender(ServiceBase):
                         # Only change to new node if the current node's average queue time is larger than the new node
                         if average > self.nodes[temp_node]['average_queue_time']:
                             self.log.info("Changed MetaDefender node from: {}, to: {}".format(self.current_node, temp_node))
-                            self.nodes[self.current_node]['average_queue_time'] = average
-                            self.nodes[self.current_node]['file_count'] = 0
                             self.current_node = temp_node
 
                         # Reset the start time
@@ -272,10 +275,11 @@ class MetaDefender(ServiceBase):
         try:
             r = self.session.post(url=url, data=data, timeout=self.timeout)
         except requests.exceptions.Timeout:
+            self.new_node(force=True, reset_queue=True)
             raise Exception("MetaDefender node: {}, timed out after {}s while trying to send file for scanning".format(self.current_node, self.timeout))
         except requests.ConnectionError:
             # MetaDefender inaccessible
-            self.new_node(force=True)  # Deactivate the current node which had a connection error
+            self.new_node(force=True, reset_queue=True)  # Deactivate the current node which had a connection error
             raise RecoverableError(
                 "Unable to reach MetaDefender node: {}, while trying to send file for scanning".format(
                     self.current_node))
@@ -293,7 +297,7 @@ class MetaDefender(ServiceBase):
                         time.sleep(0.5)
                 except KeyError:
                     # MetaDefender inaccessible
-                    self.new_node(force=True)
+                    self.new_node(force=True, reset_queue=True)
                     raise RecoverableError(
                         "Unable to reach MetaDefender node: {}, while trying to fetch scan results".format(
                             self.current_node))
