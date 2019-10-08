@@ -1,0 +1,52 @@
+name: MetaDefender
+version: 1
+description: >
+  This service is a multi scanner with 20 engines
+
+accepts: .*
+rejects: empty|metadata/.*
+
+stage: CORE
+category: Antivirus
+
+file_required: true
+timeout: 40
+disable_cache: false
+
+enabled: true
+is_external: false
+licence_count: 0
+supported_platforms: [linux]
+
+config:
+  base_url: 'http://metadefender.canadacentral.cloudapp.azure.com:8123/'
+  md_version: 4
+  md_timeout: 40
+  min_node_time: 60
+  max_node_time: 300
+  max_md_scan_time: 5
+
+heuristics:
+  - heur_id: 1
+    name: File is infected
+    score: 1000
+    filetype: '*'
+    description: MetaDefender Antivirus hit.
+
+  - heur_id: 2
+    name: File is suspicious
+    score: 500
+    filetype: '*'
+    description: MetaDefender Antivirus hit.
+
+  - heur_id: 3
+    name: File is not suspicious
+    score: 0
+    filetype: '*'
+    description: MetaDefender Antivirus null.
+
+docker_config:
+  image: cccs/assemblyline-v4-service-base:latest
+  cpu_cores: 0.1
+  ram_mb: 64
+
