@@ -19,7 +19,7 @@ licence_count: 0
 supported_platforms: [linux]
 
 config:
-  base_url: 'http://metadefender.canadacentral.cloudapp.azure.com:8123/'
+  base_url: 'http://localhost:8008/'
   md_version: 4
   md_timeout: 40
   min_node_time: 60
