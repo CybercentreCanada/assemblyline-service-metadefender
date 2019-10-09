@@ -12,7 +12,6 @@ from assemblyline_v4_service.common.base import ServiceBase
 from assemblyline_v4_service.common.result import Result, ResultSection, Classification
 
 
-
 class AvHitSection(ResultSection):
     def __init__(self, av_name, virus_name, engine):
         title = f"{av_name} identified the file as {virus_name}"
