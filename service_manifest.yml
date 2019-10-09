@@ -39,12 +39,6 @@ heuristics:
     filetype: '*'
     description: MetaDefender Antivirus hit.
 
-  - heur_id: 3
-    name: File is not suspicious
-    score: 0
-    filetype: '*'
-    description: MetaDefender Antivirus null.
-
 docker_config:
   image: cccs/assemblyline-v4-service-base:latest
   cpu_cores: 0.1

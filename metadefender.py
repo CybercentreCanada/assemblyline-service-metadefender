@@ -9,20 +9,18 @@ from assemblyline.common.exceptions import RecoverableError
 from assemblyline.common.isotime import iso_to_local, iso_to_epoch, epoch_to_local, now, now_as_local
 from assemblyline_v4_service.common.request import ServiceRequest
 from assemblyline_v4_service.common.base import ServiceBase
-from assemblyline_v4_service.common.result import Result, ResultSection, Classification, BODY_FORMAT
+from assemblyline_v4_service.common.result import Result, ResultSection, Classification
 
-#log = logging.getLogger("assemblyline.svc.common.result")
 
 
 class AvHitSection(ResultSection):
-    def __init__(self, av_name, virus_name, engine):  #score may or may not to be used in the paramaters
-        title = f'{av_name} identified the file as {virus_name}'
+    def __init__(self, av_name, virus_name, engine):
+        title = f"{av_name} identified the file as {virus_name}"
         body = ""
         if engine:
             body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}"
         super(AvHitSection, self).__init__(
             title_text=title,
-            #score=score,
             body=body,
             classification=Classification.UNRESTRICTED
         )
@@ -30,13 +28,12 @@ class AvHitSection(ResultSection):
 
 class AvErrorSection(ResultSection):
     def __init__(self, av_name, engine):
-        title = f'{av_name} failed to scan the file'
+        title = f"{av_name} failed to scan the file"
         body = ""
         if engine:
              body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}"
         super(AvErrorSection, self).__init__(
             title_text=title,
-            #score=score,
             body=body,
             classification=Classification.UNRESTRICTED
         )
@@ -53,11 +50,6 @@ class MetaDefender(ServiceBase):
         self.current_node = None
         self.start_time = None
 
-    # noinspection PyUnresolvedReferences,PyGlobalUndefined
-    #def import_service_deps(self):
-        #global requests, random
-        #import requests
-        #import random
 
     def start(self):
         self.log.debug("MetaDefender service started")
@@ -170,7 +162,6 @@ class MetaDefender(ServiceBase):
         engine_lists = ""
         for node in list(self.nodes.keys()):
             engine_lists += self.nodes[node]['engine_list']
-            #engine_lists.encode('utf-8')
         return hashlib.md5(engine_lists.encode('utf-8')).hexdigest()
 
     def execute(self, request: ServiceRequest):
@@ -202,7 +193,7 @@ class MetaDefender(ServiceBase):
             self.new_node(force=False)
 
     def get_scan_results_by_data_id(self, data_id):
-        url = self.current_node + 'file/{0}'.format(data_id)
+        url = self.current_node + f"file/{data_id}"
 
         try:
             return self.session.get(url=url, timeout=self.timeout)
@@ -250,7 +241,7 @@ class MetaDefender(ServiceBase):
                         self.start_time = time.time()
                         return
 
-    def scan_file(self, filename):
+    def scan_file(self, filename: str):
         # Let's scan the file
         url = self.current_node + 'file'
         with open(filename, 'rb') as f:
@@ -301,15 +292,15 @@ class MetaDefender(ServiceBase):
             scans = scan_results.get('scan_details', scan_results)
             av_scan_times = []
             for majorkey, subdict in sorted(scans.items()):
+                heur_id = None
                 if subdict['scan_result_i'] == 1:           # File is infected
                     virus_name = subdict['threat_found']
                     if virus_name:
-                        av_hits.set_heuristic(1, signature=f'{majorkey}.{virus_name}')
-                        score = True
+                        heur_id = 1
                 elif subdict['scan_result_i'] == 2:         # File is suspicious
                     virus_name = subdict['threat_found']
                     if virus_name:
-                        score = True
+                        heur_id = 2
                 elif subdict['scan_result_i'] == 10 or subdict['scan_result_i'] == 3:   # File was not scanned or failed
                     try:
                         engine = self.nodes[self.current_node]['engine_map'][self._format_engine_name(majorkey)]
@@ -318,10 +309,11 @@ class MetaDefender(ServiceBase):
                     av_hits.add_subsection(AvErrorSection(majorkey, engine))
                     hit = True
 
-                if score:
+                if heur_id is not None:
                     virus_name = virus_name.replace("a variant of ", "")
                     engine = self.nodes[self.current_node]['engine_map'][self._format_engine_name(majorkey)]
                     av_hit_section = AvHitSection(majorkey, virus_name, engine)
+                    av_hit_section.set_heuristic(heur_id, signature=f'{majorkey}.{virus_name}')
                     av_hit_section.add_tag('av.virus_name', virus_name)
                     av_hits.add_subsection(av_hit_section)
                     hit = True
@@ -336,7 +328,8 @@ class MetaDefender(ServiceBase):
             queue_time = response['process_info']['queue_time']
             processing_time = response['process_info']['processing_time']
             self.log.info(
-                f"File successfully scanned by MetaDefender node: {self.current_node}. File size: {file_size} B. Queue time: {queue_time} ms. Processing time: {processing_time} ms. AV scan times: {str(av_scan_times)}")
+                f"File successfully scanned by MetaDefender node: {self.current_node}. File size: {file_size} "
+                f"B. Queue time: {queue_time} ms. Processing time: {processing_time} ms. AV scan times: {str(av_scan_times)}")
 
             # Add the queue time to a list, which will be later used to calculate average queue time
             self.nodes[self.current_node]['queue_times'].append(queue_time)
