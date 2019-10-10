@@ -1,23 +1,21 @@
-import requests
-import random
 import hashlib
+import random
 import time
-
 from typing import Dict, Any
+
+import requests
 
 from assemblyline.common.exceptions import RecoverableError
 from assemblyline.common.isotime import iso_to_local, iso_to_epoch, epoch_to_local, now, now_as_local
-from assemblyline_v4_service.common.request import ServiceRequest
 from assemblyline_v4_service.common.base import ServiceBase
+from assemblyline_v4_service.common.request import ServiceRequest
 from assemblyline_v4_service.common.result import Result, ResultSection, Classification
 
 
 class AvHitSection(ResultSection):
     def __init__(self, av_name, virus_name, engine):
         title = f"{av_name} identified the file as {virus_name}"
-        body = ""
-        if engine:
-            body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}"
+        body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}" if engine else ""
         super(AvHitSection, self).__init__(
             title_text=title,
             body=body,
@@ -28,9 +26,7 @@ class AvHitSection(ResultSection):
 class AvErrorSection(ResultSection):
     def __init__(self, av_name, engine):
         title = f"{av_name} failed to scan the file"
-        body = ""
-        if engine:
-             body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}"
+        body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}" if engine else ""
         super(AvErrorSection, self).__init__(
             title_text=title,
             body=body,
@@ -39,16 +35,13 @@ class AvErrorSection(ResultSection):
 
 
 class MetaDefender(ServiceBase):
-
     def __init__(self, config=None):
         super(MetaDefender, self).__init__(config)
         self.session = None
-        self._updater_id = "ENABLE_SERVICE_BLK_MSG"
-        self.timeout = config.get("md_timeout", (40*2)/3)
+        self.timeout = self.config.get("md_timeout", (40*2)/3)
         self.nodes = {}
         self.current_node = None
         self.start_time = None
-
 
     def start(self):
         self.log.debug("MetaDefender service started")
@@ -59,7 +52,7 @@ class MetaDefender(ServiceBase):
             for base_url in self.config.get("base_url"):
                 base_urls.append(base_url)
         else:
-            raise Exception("Invalid format for BASE_URL service variable")
+            raise Exception("Invalid format for BASE_URL service variable (must be str or list)")
 
         # Initialize a list of all nodes with default data
         for index, url in enumerate(base_urls):
@@ -90,7 +83,7 @@ class MetaDefender(ServiceBase):
 
                 # Check to see if the chosen node has a version map, else try to get version map again
                 if self.nodes[self.current_node]['engine_count'] >= 1:
-                    self.log.info(f"MetaDefender node: {self.current_node}, chosen at launch")
+                    self.log.info(f"Node ({self.current_node}) chosen at launch")
                     break
                 else:
                     self._get_version_map(self.current_node)
@@ -100,13 +93,13 @@ class MetaDefender(ServiceBase):
             self.start_time = time.time()
 
     @staticmethod
-    def _format_engine_name(name):
+    def _format_engine_name(name: str):
         new_name = name.lower().replace(" ", "").replace("!", "")
         if new_name.endswith("av"):
             new_name = new_name[:-2]
         return new_name
 
-    def _get_version_map(self, node):
+    def _get_version_map(self, node: str):
         newest_dat = 0
         oldest_dat = now()
         engine_list = []
@@ -130,7 +123,7 @@ class MetaDefender(ServiceBase):
                     def_time = def_time[6:10] + "-" + def_time[:5] + def_time[10:] + "Z"
                     etype = engine['eng_type']
                 else:
-                    raise Exception("Unknown MetaDefender version")
+                    raise Exception("Unknown version of MetaDefender")
 
                 # Compute newest DAT
                 dat_epoch = iso_to_epoch(def_time)
@@ -153,9 +146,10 @@ class MetaDefender(ServiceBase):
             self.nodes[node]['oldest_dat'] = epoch_to_local(oldest_dat)[:19]
             self.nodes[node]['engine_list'] = "".join(engine_list)
         except requests.exceptions.Timeout:
-            self.log.warning(f"MetaDefender node: {node}, timed out after {self.timeout}s while trying to get engine version map")
+            self.log.warning(f"Node ({node}) timed out after {self.timeout}s "
+                             "while trying to get engine version map")
         except requests.ConnectionError:
-            self.log.warning(f"Unable to connect to MetaDefender node: {node}, while trying to get engine version map")
+            self.log.warning(f"Unable to connect to node ({node}) while trying to get engine version map")
 
     def get_tool_version(self):
         engine_lists = ""
@@ -181,8 +175,8 @@ class MetaDefender(ServiceBase):
             response = self.scan_file(filename)
         result = self.parse_results(response)
         request.result = result
-        request.set_service_context(
-            f"Definition Time Range: {self.nodes[self.current_node]['oldest_dat']} - {self.nodes[self.current_node]['newest_dat']}")
+        request.set_service_context(f"Definition Time Range: {self.nodes[self.current_node]['oldest_dat']} - "
+                                    f"{self.nodes[self.current_node]['newest_dat']}")
 
         # Compare queue time of current node with new random node after a minimum run time on current node
         elapsed_time = self.start_time - time.time()
@@ -191,18 +185,19 @@ class MetaDefender(ServiceBase):
         elif elapsed_time >= self.config.get("min_node_time"):
             self.new_node(force=False)
 
-    def get_scan_results_by_data_id(self, data_id):
+    def get_scan_results_by_data_id(self, data_id: str):
         url = self.current_node + f"file/{data_id}"
 
         try:
             return self.session.get(url=url, timeout=self.timeout)
         except requests.exceptions.Timeout:
             self.new_node(force=True, reset_queue=True)
-            raise Exception(f"MetaDefender node: {self.current_node}, timed out after {self.timeout}s while trying to fetch scan results")
+            raise Exception(f"Node ({self.current_node}) timed out after {self.timeout}s "
+                            "while trying to fetch scan results")
         except requests.ConnectionError:
             # MetaDefender inaccessible
             self.new_node(force=True, reset_queue=True)
-            raise RecoverableError(f"Unable to reach MetaDefender node: {self.current_node}, while trying to fetch scan results")
+            raise RecoverableError(f"Unable to reach node ({self.current_node}) while trying to fetch scan results")
 
     def new_node(self, force, reset_queue=False):
         if len(self.nodes) == 1:
@@ -226,14 +221,14 @@ class MetaDefender(ServiceBase):
                 temp_node = random.choice(list(self.nodes.keys()))
                 if temp_node != self.current_node:
                     if force:
-                        self.log.info(f"Changed MetaDefender node from: {self.current_node}, to: {temp_node}")
+                        self.log.info(f"Changed node from {self.current_node} to {temp_node}")
                         self.current_node = temp_node
                         self.start_time = time.time()
                         return
                     else:
                         # Only change to new node if the current node's average queue time is larger than the new node
                         if average > self.nodes[temp_node]['average_queue_time']:
-                            self.log.info(f"Changed MetaDefender node from: {self.current_node}, to: {temp_node}")
+                            self.log.info(f"Changed node from {self.current_node} to {temp_node}")
                             self.current_node = temp_node
 
                         # Reset the start time
@@ -250,12 +245,13 @@ class MetaDefender(ServiceBase):
             r = self.session.post(url=url, data=data, timeout=self.timeout)
         except requests.exceptions.Timeout:
             self.new_node(force=True, reset_queue=True)
-            raise Exception(f"MetaDefender node: {self.current_node}, timed out after {self.timeout}s while trying to send file for scanning")
+            raise Exception(f"Node ({self.current_node}) timed out after {self.timeout}s "
+                            "while trying to send file for scanning")
         except requests.ConnectionError:
             # MetaDefender inaccessible
             self.new_node(force=True, reset_queue=True)  # Deactivate the current node which had a connection error
             raise RecoverableError(
-                f"Unable to reach MetaDefender node: {self.current_node}, while trying to send file for scanning")
+                f"Unable to reach node ({self.current_node}) while trying to send file for scanning")
 
         if r.status_code == requests.codes.ok:
             data_id = r.json()['data_id']
@@ -272,7 +268,7 @@ class MetaDefender(ServiceBase):
                     # MetaDefender inaccessible
                     self.new_node(force=True, reset_queue=True)
                     raise RecoverableError(
-                        f"Unable to reach MetaDefender node: {self.current_node}, while trying to fetch scan results")
+                        f"Unable to reach node ({self.current_node}) while trying to fetch scan results")
 
             self.nodes[self.current_node]['timeout_count'] = 0
             self.nodes[self.current_node]['timeout'] = 0
@@ -326,9 +322,9 @@ class MetaDefender(ServiceBase):
             file_size = response['file_info']['file_size']
             queue_time = response['process_info']['queue_time']
             processing_time = response['process_info']['processing_time']
-            self.log.info(
-                f"File successfully scanned by MetaDefender node: {self.current_node}. File size: {file_size} "
-                f"B. Queue time: {queue_time} ms. Processing time: {processing_time} ms. AV scan times: {str(av_scan_times)}")
+            self.log.info(f"File successfully scanned by node ({self.current_node}). File size: {file_size} B."
+                          f"Queue time: {queue_time} ms. Processing time: {processing_time} ms. "
+                          f"AV scan times: {str(av_scan_times)}")
 
             # Add the queue time to a list, which will be later used to calculate average queue time
             self.nodes[self.current_node]['queue_times'].append(queue_time)
