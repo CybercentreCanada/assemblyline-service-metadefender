@@ -2,6 +2,7 @@ import hashlib
 import random
 import time
 from typing import Dict, Any
+from urllib.parse import urljoin
 
 import requests
 
@@ -103,7 +104,7 @@ class MetaDefender(ServiceBase):
         newest_dat = 0
         oldest_dat = now()
         engine_list = []
-        url = node + 'stat/engines'
+        url = urljoin(node, 'stat/engines')
 
         try:
             r = self.session.get(url=url, timeout=self.timeout)
@@ -186,7 +187,7 @@ class MetaDefender(ServiceBase):
             self.new_node(force=False)
 
     def get_scan_results_by_data_id(self, data_id: str):
-        url = self.current_node + f"file/{data_id}"
+        url = urljoin(self.current_node, f"file/{data_id}")
 
         try:
             return self.session.get(url=url, timeout=self.timeout)
@@ -237,7 +238,7 @@ class MetaDefender(ServiceBase):
 
     def scan_file(self, filename: str):
         # Let's scan the file
-        url = self.current_node + 'file'
+        url = urljoin(self.current_node, 'file')
         with open(filename, 'rb') as f:
             data = f.read()
 
