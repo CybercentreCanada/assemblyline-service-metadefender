@@ -10,17 +10,28 @@ from assemblyline.common.exceptions import RecoverableError
 from assemblyline.common.isotime import iso_to_local, iso_to_epoch, epoch_to_local, now, now_as_local
 from assemblyline_v4_service.common.base import ServiceBase
 from assemblyline_v4_service.common.request import ServiceRequest
-from assemblyline_v4_service.common.result import Result, ResultSection, Classification
+from assemblyline_v4_service.common.result import Result, ResultSection, Classification, BODY_FORMAT
 
 
 class AvHitSection(ResultSection):
-    def __init__(self, av_name, virus_name, engine):
+    def __init__(self, av_name, virus_name, engine, heur_id: int):
         title = f"{av_name} identified the file as {virus_name}"
-        body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}" if engine else ""
+        json_body = dict(
+            av_name=av_name,
+            virus_name=virus_name,
+            scan_result="infected" if heur_id == 1 else "suspicious",
+        )
+
+        if engine:
+            json_body['engine_version'] = engine['version']
+            json_body['engine_definition_time'] = engine['def_time']
+
+        # body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}" if engine else ""
         super(AvHitSection, self).__init__(
             title_text=title,
-            body=body,
-            classification=Classification.UNRESTRICTED
+            body_format=BODY_FORMAT.JSON,
+            body=json_body,
+            classification=Classification.UNRESTRICTED,
         )
 
 
@@ -308,7 +319,7 @@ class MetaDefender(ServiceBase):
                 if heur_id is not None:
                     virus_name = virus_name.replace("a variant of ", "")
                     engine = self.nodes[self.current_node]['engine_map'][self._format_engine_name(majorkey)]
-                    av_hit_section = AvHitSection(majorkey, virus_name, engine)
+                    av_hit_section = AvHitSection(majorkey, virus_name, engine, heur_id)
                     av_hit_section.set_heuristic(heur_id, signature=f'{majorkey}.{virus_name}')
                     av_hit_section.add_tag('av.virus_name', virus_name)
                     av_hits.add_subsection(av_hit_section)
