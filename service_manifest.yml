@@ -14,9 +14,8 @@ timeout: 60
 disable_cache: false
 
 enabled: false
-is_external: true
+is_external: false
 licence_count: 0
-supported_platforms: [linux, windows]
 
 config:
   base_url: 'http://localhost:8008/'
