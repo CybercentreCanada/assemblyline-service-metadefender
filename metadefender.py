@@ -21,11 +21,9 @@ class AvHitSection(ResultSection):
             av_name=av_name,
             virus_name=virus_name,
             scan_result="infected" if heur_id == 1 else "suspicious",
+            engine_version=engine['version'] if engine else "unknown",
+            engine_definition_time=engine['def_time'] if engine else "unknown",
         )
-
-        if engine:
-            json_body["engine_version"] = engine['version']
-            json_body["engine_definition_time"] = engine['def_time']
 
         # body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}" if engine else ""
         super(AvHitSection, self).__init__(
