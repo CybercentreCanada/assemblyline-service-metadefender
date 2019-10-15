@@ -3,6 +3,7 @@ import random
 import time
 from typing import Dict, Any
 from urllib.parse import urljoin
+import json
 
 import requests
 
@@ -23,14 +24,14 @@ class AvHitSection(ResultSection):
         )
 
         if engine:
-            json_body['engine_version'] = engine['version']
-            json_body['engine_definition_time'] = engine['def_time']
+            json_body["engine_version"] = engine['version']
+            json_body["engine_definition_time"] = engine['def_time']
 
         # body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}" if engine else ""
         super(AvHitSection, self).__init__(
             title_text=title,
             body_format=BODY_FORMAT.JSON,
-            body=json_body,
+            body=json.dumps(json_body),
             classification=Classification.UNRESTRICTED,
         )
 
