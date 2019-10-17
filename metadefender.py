@@ -28,7 +28,7 @@ class AvHitSection(ResultSection):
         # body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}" if engine else ""
         super(AvHitSection, self).__init__(
             title_text=title,
-            body_format=BODY_FORMAT.JSON,
+            body_format=BODY_FORMAT.KEY_VALUE,
             body=json.dumps(json_body),
             classification=Classification.UNRESTRICTED,
         )
