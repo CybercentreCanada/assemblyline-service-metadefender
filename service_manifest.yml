@@ -41,5 +41,5 @@ heuristics:
 docker_config:
   image: cccs/assemblyline-service-metadefender:latest
   cpu_cores: 0.1
-  ram_mb: 64
+  ram_mb: 256
 
