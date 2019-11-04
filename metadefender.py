@@ -293,7 +293,10 @@ class MetaDefender(ServiceBase):
 
         if scan_results is not None and scan_results.get('progress_percentage') == 100:
             hit = False
-            av_hits = ResultSection('Anti-Virus Detections')
+            fail = False
+            no_threat_detected = []
+            av_hits = ResultSection('AV Detections as Infected or Suspicious')
+            av_fails = ResultSection('Failed to Scan or No Threats Detected')
 
             scans = scan_results.get('scan_details', scan_results)
             av_scan_times = []
@@ -312,8 +315,11 @@ class MetaDefender(ServiceBase):
                         engine = self.nodes[self.current_node]['engine_map'][self._format_engine_name(majorkey)]
                     except:
                         engine = None
-                    av_hits.add_subsection(AvErrorSection(majorkey, engine))
-                    hit = True
+                    fail = True
+                    av_fails.add_subsection(AvErrorSection(majorkey, engine))
+                elif subdict['scan_result_i'] == 0:  # No threat detected
+                    no_threat_detected.append(majorkey)
+                    fail = True
 
                 if heur_id is not None:
                     virus_name = virus_name.replace("a variant of ", "")
@@ -329,6 +335,15 @@ class MetaDefender(ServiceBase):
 
             if hit:
                 res.add_section(av_hits)
+
+            if fail:
+                if no_threat_detected:
+                    ResultSection("No Threat Detected by AV Engine(s)",
+                                  body_format=BODY_FORMAT.KEY_VALUE,
+                                  body=json.dumps(dict(no_threat_detected=no_threat_detected)),
+                                  parent=av_fails)
+
+                res.add_section(av_fails)
 
             file_size = response['file_info']['file_size']
             queue_time = response['process_info']['queue_time']
