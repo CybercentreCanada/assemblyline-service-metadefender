@@ -25,13 +25,14 @@ class AvHitSection(ResultSection):
             engine_definition_time=engine['def_time'] if engine else "unknown",
         )
 
-        # body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}" if engine else ""
         super(AvHitSection, self).__init__(
             title_text=title,
             body_format=BODY_FORMAT.KEY_VALUE,
             body=json.dumps(json_body),
             classification=Classification.UNRESTRICTED,
         )
+        self.set_heuristic(heur_id, signature=f'{av_name}.{virus_name}')
+        self.add_tag('av.virus_name', virus_name)
 
 
 class AvErrorSection(ResultSection):
@@ -325,8 +326,6 @@ class MetaDefender(ServiceBase):
                     virus_name = virus_name.replace("a variant of ", "")
                     engine = self.nodes[self.current_node]['engine_map'][self._format_engine_name(majorkey)]
                     av_hit_section = AvHitSection(majorkey, virus_name, engine, heur_id)
-                    av_hit_section.set_heuristic(heur_id, signature=f'{majorkey}.{virus_name}')
-                    av_hit_section.add_tag('av.virus_name', virus_name)
                     av_hits.add_subsection(av_hit_section)
                     hit = True
 
