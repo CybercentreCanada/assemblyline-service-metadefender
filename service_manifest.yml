@@ -39,6 +39,6 @@ heuristics:
     description: MetaDefender Antivirus hit.
 
 docker_config:
-  image: cccs/assemblyline-service-metadefender:latest
+  image: ${REGISTRY}cccs/assemblyline-service-metadefender:latest
   cpu_cores: 0.25
   ram_mb: 256
