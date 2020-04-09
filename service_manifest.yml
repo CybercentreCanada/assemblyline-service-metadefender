@@ -18,8 +18,7 @@ is_external: false
 licence_count: 0
 
 config:
-  user: sample_user
-  password: sample_password
+  api_key: ""
   base_url: 'http://localhost:8008/'
   md_version: 4
   md_timeout: 40

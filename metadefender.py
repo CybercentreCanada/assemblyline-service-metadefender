@@ -54,8 +54,10 @@ class MetaDefender(ServiceBase):
         self.nodes = {}
         self.current_node = None
         self.start_time = None
-        self.creds = {"user": self.config.get("user"), "password": self.config.get("password")}
-        self.api_key = None
+        self.headers = None
+        api_key = self.config.get("api_key")
+        if api_key:
+            self.headers = {"apikey": api_key}
 
     def start(self):
         self.log.debug("MetaDefender service started")
@@ -101,9 +103,6 @@ class MetaDefender(ServiceBase):
                     break
                 else:
                     self._get_version_map(self.current_node)
-
-        # We need to login first to get the session_id which will act as the api_key for subsequent calls
-        self.api_key = {"apikey": self._login()}
 
         # Start the global timer
         if not self.start_time:
@@ -168,37 +167,6 @@ class MetaDefender(ServiceBase):
         except requests.ConnectionError:
             self.log.warning(f"Unable to connect to node ({node}) while trying to get engine version map")
 
-    def _login(self):
-        url = urljoin(self.current_node, 'login')
-        try:
-            r = self.session.post(url=url, json=self.creds)
-            if r.status_code == requests.codes.ok:
-                session_id = r.json()['session_id']
-                return session_id
-            elif r.status_code == requests.codes.forbidden:
-                raise RecoverableError(f"Unable to login to node ({self.current_node})")
-            else:
-                raise Exception(f"Unexpected event on node {self.current_node}")
-        except requests.exceptions.Timeout:
-            self.log.warning(f"Node ({self.current_node}) timed out after {self.timeout}s "
-                             "while trying to login")
-        except requests.ConnectionError:
-            self.log.warning(f"Unable to connect to node ({self.current_node}) while trying to login")
-
-    def _logout(self):
-        url = urljoin(self.current_node, 'logout')
-        try:
-            r = self.session.post(url=url, json=self.creds)
-            if r.status_code == requests.codes.ok:
-                return True
-            else:
-                return False
-        except requests.exceptions.Timeout:
-            self.log.warning(f"Node ({self.current_node}) timed out after {self.timeout}s "
-                             "while trying to logout")
-        except requests.ConnectionError:
-            self.log.warning(f"Unable to connect to node ({self.current_node}) while trying to logout")
-
     def get_tool_version(self):
         engine_lists = ""
         for node in list(self.nodes.keys()):
@@ -237,7 +205,7 @@ class MetaDefender(ServiceBase):
         url = urljoin(self.current_node, f"file/{data_id}")
 
         try:
-            return self.session.get(url=url, headers=self.api_key, timeout=self.timeout)
+            return self.session.get(url=url, headers=self.headers, timeout=self.timeout)
         except requests.exceptions.Timeout:
             self.new_node(force=True, reset_queue=True)
             raise Exception(f"Node ({self.current_node}) timed out after {self.timeout}s "
@@ -252,9 +220,6 @@ class MetaDefender(ServiceBase):
             time.sleep(5)
             return
 
-        # Close the requests session before moving on to select new node
-        if not self._logout():
-            raise RecoverableError(f"Could not log out of {self.current_node}")
         self.session.close()
 
         if self.nodes[self.current_node]['file_count'] > 1:
@@ -292,7 +257,7 @@ class MetaDefender(ServiceBase):
             data = f.read()
 
         try:
-            r = self.session.post(url=url, data=data, headers=self.api_key, timeout=self.timeout)
+            r = self.session.post(url=url, data=data, headers=self.headers, timeout=self.timeout)
         except requests.exceptions.Timeout:
             self.new_node(force=True, reset_queue=True)
             raise Exception(f"Node ({self.current_node}) timed out after {self.timeout}s "
@@ -351,9 +316,10 @@ class MetaDefender(ServiceBase):
                     if virus_name:
                         heur_id = 2
                 elif subdict['scan_result_i'] == 10 or subdict['scan_result_i'] == 3:   # File was not scanned or failed
+                    # noinspection PyBroadException
                     try:
                         engine = self.nodes[self.current_node]['engine_map'][self._format_engine_name(majorkey)]
-                    except:
+                    except Exception:
                         engine = None
                     fail = True
                     av_fails.add_subsection(AvErrorSection(majorkey, engine))
