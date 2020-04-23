@@ -2,7 +2,7 @@
 
 **NOTE**: The following instructions are for **MetaDefender Core v4** running on a **Windows** machine.
 
-If your deployment experiences a heavy file load, MetaDefender tends to become slower over time due to the increasing size of its database. In order to overcome this issue, a task can be scheduled to run a PowerShell script ([metacleanup.ps1](../mdcore_install/install_notes.md)) which will temporarily stop the MetaDefender service, delete the database and then restart the service. Every time the script runs, there is a down time of approximately 30-90 secs during which the MetaDefender service is unreachable. If you have multiple deployments of MetaDefender, you can offset the scheduled task for each deployment to minimize service downtime.
+If your deployment experiences a heavy file load, MetaDefender tends to become slower over time due to the increasing size of its database. In order to overcome this issue, a task can be scheduled to run a PowerShell script ([metacleanup.ps1](metacleanup.ps1)) which will temporarily stop the MetaDefender service, delete the database and then restart the service. Every time the script runs, there is a down time of approximately 30-90 secs during which the MetaDefender service is unreachable. If you have multiple deployments of MetaDefender, you can offset the scheduled task for each deployment to minimize service downtime.
 
 ## Set-up Instructions
 
