@@ -1,7 +1,7 @@
 name: MetaDefender
 version: 1
 description: >
-  This service is a multi scanner with 20 engines.
+  Scan your files with a multi antivirus scanning engine.
 
 accepts: .*
 rejects: empty|metadata/.*
