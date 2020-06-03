@@ -1,5 +1,5 @@
 name: MetaDefender
-version: 1
+version: $SERVICE_TAG
 description: >
   Scan your files with a multi antivirus scanning engine.
 
@@ -40,6 +40,6 @@ heuristics:
     description: MetaDefender Antivirus hit.
 
 docker_config:
-  image: ${REGISTRY}cccs/assemblyline-service-metadefender:latest
+  image: ${REGISTRY}cccs/assemblyline-service-metadefender:$SERVICE_TAG
   cpu_cores: 0.25
   ram_mb: 256
