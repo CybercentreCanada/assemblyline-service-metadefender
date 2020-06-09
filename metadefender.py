@@ -90,7 +90,7 @@ class MetaDefender(ServiceBase):
             engine_count += self.nodes[node]['engine_count']
 
         if engine_count == 0:
-            raise Exception("Unable to reach any MetaDefender node to get version map")
+            raise Exception(f"MetaDefender Core node {node} has an active engine_count of 0")
 
         # On first launch, choose random node to start with
         if not self.current_node:
@@ -119,6 +119,8 @@ class MetaDefender(ServiceBase):
         newest_dat = 0
         oldest_dat = now()
         engine_list = []
+        active_engines = 0
+        failed_states = ["removed", "temporary failed", "permanently failed"]
         url = urljoin(node, 'stat/engines')
 
         try:
@@ -126,6 +128,9 @@ class MetaDefender(ServiceBase):
             engines = r.json()
 
             for engine in engines:
+                if engine['active'] and engine["state"] not in failed_states:
+                    active_engines += 1
+
                 if self.config.get("md_version") == 4:
                     name = self._format_engine_name(engine["eng_name"])
                     version = engine['eng_ver']
@@ -157,15 +162,14 @@ class MetaDefender(ServiceBase):
                 engine_list.append(version)
                 engine_list.append(def_time)
 
-            self.nodes[node]['engine_count'] = len(engines)
+            self.nodes[node]['engine_count'] = active_engines
             self.nodes[node]['newest_dat'] = epoch_to_local(newest_dat)[:19]
             self.nodes[node]['oldest_dat'] = epoch_to_local(oldest_dat)[:19]
             self.nodes[node]['engine_list'] = "".join(engine_list)
         except requests.exceptions.Timeout:
-            self.log.warning(f"Node ({node}) timed out after {self.timeout}s "
-                             "while trying to get engine version map")
+            raise Exception(f"Node ({node}) timed out after {self.timeout}s while trying to get engine version map")
         except requests.ConnectionError:
-            self.log.warning(f"Unable to connect to node ({node}) while trying to get engine version map")
+            raise Exception(f"Unable to connect to node ({node}) while trying to get engine version map")
 
     def get_tool_version(self):
         engine_lists = ""
