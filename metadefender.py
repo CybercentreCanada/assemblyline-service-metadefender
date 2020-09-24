@@ -291,7 +291,7 @@ class MetaDefender(ServiceBase):
 
             self.nodes[self.current_node]['timeout_count'] = 0
             self.nodes[self.current_node]['timeout'] = 0
-        elif r.status_code == requests.codes.bad:
+        else:
             raise RecoverableError(f"Unable to scan file due to {r.json()['err']}")
         return r.json()
 
