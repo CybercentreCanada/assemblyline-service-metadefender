@@ -292,7 +292,7 @@ class MetaDefender(ServiceBase):
             self.nodes[self.current_node]['timeout_count'] = 0
             self.nodes[self.current_node]['timeout'] = 0
         else:
-            raise RecoverableError(f"Unable to scan file due to {r.json()['err']}")
+            raise Exception(f"Unable to scan file due to {r.json()['err']}")
         return r.json()
 
     def parse_results(self, response: Dict[str, Any]):
