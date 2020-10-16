@@ -299,7 +299,7 @@ class MetaDefender(ServiceBase):
         res = Result()
         scan_results = response.get('scan_results', response)
         virus_name = ""
-
+        process_results = response.get('process_info', response)
         if scan_results is not None and scan_results.get('progress_percentage') == 100:
             hit = False
             fail = False
@@ -363,5 +363,21 @@ class MetaDefender(ServiceBase):
             # Add the queue time to a list, which will be later used to calculate average queue time
             self.nodes[self.current_node]['queue_times'].append(queue_time)
             self.nodes[self.current_node]['file_count'] += 1
+        if process_results is not None and process_results.get('progress_percentage') == 100:
+            hit = False
+            fail = False
+            cdr_fails = ResultSection('CDR Failed or No Malicious Files Found')
+            processed = process_results.get('post_processing', process_results)
+            if processed['actions_failed']:
+                fail = True
+            elif processed['actions_ran']:
+                hit=True
+        #add cdr json extracted
+        if hit:
+            cdr_json_section = ResultSection('CDR Succesfully Executed', body_format=BODY_FORMAT.JSON,
+                                             body=json.dumps(processed))
+            res.add_section(cdr_json_section)
+        if fail:
+            res.add_section(cdr_fails)
 
         return res
