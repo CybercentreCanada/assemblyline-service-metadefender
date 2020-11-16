@@ -40,6 +40,6 @@ heuristics:
     description: MetaDefender Antivirus hit.
 
 docker_config:
+  allow_internet_access: true
   image: ${REGISTRY}cccs/assemblyline-service-metadefender:$SERVICE_TAG
   cpu_cores: 0.25
-  ram_mb: 256
