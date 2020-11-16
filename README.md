@@ -31,15 +31,15 @@ Once MetaDefender Core has been installed and activated with your license, the f
 	* Archive engine
 * Frequently cleaning up the scan database using both of the following methods:
 	* Setting all the data retention options to the lowest time value under **Settings > Data Retention**
-	* Using a scheduled task on your MetaDefender machine, see [here](mdcore_install/install_notes.md) for instructions
+	* Updating your MetaDefender Core version so that PostgreSQL is the default database
 
 ## Service Options
 
-* **api_key**: API Key used to connect to the metadefender API
+* **api_key**: API Key used to connect to the MetaDefender API
 * **base_url**: The URL(s) of the MetaDefender deployment(s)
 	* If you have a **single** MetaDefender Core deployment, set the service variable to **str** type and enter the URL of your MetaDefender Core deployment
 	* If you have **multiple** MetaDefender Core deployments, set the service variable to **list** type and enter the URLs of your MetaDefender Core deployments separated by a comma
-* **md_version**: Version of metadefender you're connecting to (3 or 4)
+* **md_version**: Version of MetaDefender you're connecting to (3 or 4)
 * **md_timeout**: Maximum amount of time to wait while connecting to the MetaDefender server
 * **max_md_scan_time**: Maximum amount of time to wait for scan results before the MetaDefender server is put on a brief timeout (only applicable when multiple MetaDefender deployments are used)
 
@@ -53,4 +53,4 @@ If your MetaDefender Core is deployed in an online environment, you can set the 
 
 ### Offline Deployment of MetaDefender Core
 
-If your Metadefender Core is deployed in an offline environment, you will need to use the Update Downloader utility to download the antivirus definition updates in an online environment and then transfer the updates manually to the offline environment. See [here](https://onlinehelp.opswat.com/downloader/) for instructions on how to use the Update Downloader utility. Once the definition updates have been downloaded and transferred to the offline deployment, you can have MetaDefender monitor a local directory for any new definition updates added to it. You can set which local folder MetaDefender monitors by going to **Settings > Update Settings** then selecting **FOLDER** as the source for updates and then setting the **Pick up updates from** field to your local updates directory.
+If your MetaDefender Core is deployed in an offline environment, you will need to use the Update Downloader utility to download the antivirus definition updates in an online environment and then transfer the updates manually to the offline environment. See [here](https://onlinehelp.opswat.com/downloader/) for instructions on how to use the Update Downloader utility. Once the definition updates have been downloaded and transferred to the offline deployment, you can have MetaDefender monitor a local directory for any new definition updates added to it. You can set which local folder MetaDefender monitors by going to **Settings > Update Settings** then selecting **FOLDER** as the source for updates and then setting the **Pick up updates from** field to your local updates directory.
