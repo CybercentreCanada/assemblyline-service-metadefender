@@ -124,6 +124,7 @@ class MetaDefender(ServiceBase):
         url = urljoin(node, 'stat/engines')
 
         try:
+            self.log.debug(f"_get_version_map: GET {url}")
             r = self.session.get(url=url, timeout=self.timeout)
             engines = r.json()
 
@@ -209,6 +210,7 @@ class MetaDefender(ServiceBase):
         url = urljoin(self.current_node, f"file/{data_id}")
 
         try:
+            self.log.debug(f"get_scan_results_by_data_id: GET {url}")
             return self.session.get(url=url, headers=self.headers, timeout=self.timeout)
         except requests.exceptions.Timeout:
             self.new_node(force=True, reset_queue=True)
@@ -261,6 +263,7 @@ class MetaDefender(ServiceBase):
             data = f.read()
 
         try:
+            self.log.debug(f"scan_file: POST {url}")
             r = self.session.post(url=url, data=data, headers=self.headers, timeout=self.timeout)
         except requests.exceptions.Timeout:
             self.new_node(force=True, reset_queue=True)
@@ -274,6 +277,8 @@ class MetaDefender(ServiceBase):
 
         if r.status_code == requests.codes.ok:
             data_id = r.json()['data_id']
+            # Give MD some time to scan it!
+            time.sleep(1)
             while True:
                 r = self.get_scan_results_by_data_id(data_id=data_id)
                 if r.status_code != requests.codes.ok:
