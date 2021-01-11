@@ -349,7 +349,8 @@ class MetaDefender(ServiceBase):
             if hit:
                 res.add_section(av_hits)
 
-            if fail:
+            # Only creat a result section for "No Threat Detected" if there was at least one hit
+            if hit and fail:
                 if no_threat_detected:
                     ResultSection("No Threat Detected by AV Engine(s)",
                                   body_format=BODY_FORMAT.KEY_VALUE,
@@ -376,10 +377,10 @@ class MetaDefender(ServiceBase):
             if processed['actions_failed']:
                 fail = True
             elif processed['actions_ran']:
-                hit=True
+                hit = True
         #add cdr json extracted
         if hit:
-            cdr_json_section = ResultSection('CDR Succesfully Executed', body_format=BODY_FORMAT.JSON,
+            cdr_json_section = ResultSection('CDR Successfully Executed', body_format=BODY_FORMAT.JSON,
                                              body=json.dumps(processed))
             res.add_section(cdr_json_section)
         if fail:
