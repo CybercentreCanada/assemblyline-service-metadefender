@@ -11,7 +11,15 @@ from assemblyline.common.exceptions import RecoverableError
 from assemblyline.common.isotime import iso_to_local, iso_to_epoch, epoch_to_local, now, now_as_local
 from assemblyline_v4_service.common.base import ServiceBase
 from assemblyline_v4_service.common.request import ServiceRequest
-from assemblyline_v4_service.common.result import Result, ResultSection, Classification, BODY_FORMAT
+from assemblyline_v4_service.common.result import Result, ResultSection, Classification, BODY_FORMAT, Heuristic
+
+REVISED_SCORE_MAP = {
+    "Ikarus.Trojan-Downloader.VBA.Agent": 0,
+    "Ikarus.Trojan-Downloader.MSWord.Agent": 0,
+    "Vir.IT eXplorer.Office.VBA_Macro_Heur": 0,
+    "NANOAV.Exploit.Xml.CVE-2017-0199.equmby": 0,
+    "TACHYON.Suspicious/XOX.Obfus.Gen.2": 100,
+}
 
 
 class AvHitSection(ResultSection):
@@ -31,7 +39,14 @@ class AvHitSection(ResultSection):
             body=json.dumps(json_body),
             classification=Classification.UNRESTRICTED,
         )
-        self.set_heuristic(heur_id, signature=f'{av_name}.{virus_name}')
+        signature_name = f'{av_name}.{virus_name}'
+        section_heur = Heuristic(heur_id)
+        if signature_name in REVISED_SCORE_MAP:
+            revised_heur_score = REVISED_SCORE_MAP[signature_name]
+            section_heur.add_signature_id(signature_name, score=revised_heur_score)
+        else:
+            section_heur.add_signature_id(signature_name)
+        self.heuristic = section_heur
         self.add_tag('av.virus_name', virus_name)
 
 
