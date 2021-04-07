@@ -81,7 +81,8 @@ class MetaDefender(ServiceBase):
             base_urls = [self.config.get("base_url")]
         elif type(self.config.get("base_url")) == list:
             for base_url in self.config.get("base_url"):
-                base_urls.append(base_url)
+                prepared_base_url = base_url.replace(" ", "")
+                base_urls.append(prepared_base_url)
         else:
             raise Exception("Invalid format for BASE_URL service variable (must be str or list)")
 
