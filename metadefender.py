@@ -1,11 +1,10 @@
 import hashlib
 import random
 import time
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 from urllib.parse import urljoin
 import json
-
-import requests
+from requests import Session, Response, ConnectionError, exceptions, codes
 
 from assemblyline.common.exceptions import RecoverableError
 from assemblyline.common.isotime import iso_to_local, iso_to_epoch, epoch_to_local, now, now_as_local
@@ -19,11 +18,12 @@ REVISED_SCORE_MAP = {
     "Vir.IT eXplorer.Office.VBA_Macro_Heur": 0,
     "NANOAV.Exploit.Xml.CVE-2017-0199.equmby": 0,
     "TACHYON.Suspicious/XOX.Obfus.Gen.2": 100,
+    "Jiangmin.Adware.Agent.aldo": 100,
 }
 
 
 class AvHitSection(ResultSection):
-    def __init__(self, av_name, virus_name, engine, heur_id: int):
+    def __init__(self, av_name: str, virus_name: str, engine: Dict[str, str], heur_id: int) -> None:
         title = f"{av_name} identified the file as {virus_name}"
         json_body = dict(
             av_name=av_name,
@@ -42,8 +42,7 @@ class AvHitSection(ResultSection):
         signature_name = f'{av_name}.{virus_name}'
         section_heur = Heuristic(heur_id)
         if signature_name in REVISED_SCORE_MAP:
-            revised_heur_score = REVISED_SCORE_MAP[signature_name]
-            section_heur.add_signature_id(signature_name, score=revised_heur_score)
+            section_heur.add_signature_id(signature_name, REVISED_SCORE_MAP[signature_name])
         else:
             section_heur.add_signature_id(signature_name)
         self.heuristic = section_heur
@@ -51,7 +50,7 @@ class AvHitSection(ResultSection):
 
 
 class AvErrorSection(ResultSection):
-    def __init__(self, av_name, engine):
+    def __init__(self, av_name: str, engine: Dict[str, str]) -> None:
         title = f"{av_name} failed to scan the file"
         body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}" if engine else ""
         super(AvErrorSection, self).__init__(
@@ -62,21 +61,21 @@ class AvErrorSection(ResultSection):
 
 
 class MetaDefender(ServiceBase):
-    def __init__(self, config=None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         super(MetaDefender, self).__init__(config)
-        self.session = None
+        self.session: Optional[Session] = None
         self.timeout = self.config.get("md_timeout", (40*2)/3)
-        self.nodes = {}
-        self.current_node = None
-        self.start_time = None
-        self.headers = None
+        self.nodes: Dict[str, Dict[str, Any]] = {}
+        self.current_node: Optional[str] = None
+        self.start_time: Optional[float] = None
+        self.headers: Optional[Dict[str, str]] = None
         api_key = self.config.get("api_key")
         if api_key:
             self.headers = {"apikey": api_key}
 
-    def start(self):
+    def start(self) -> None:
         self.log.debug("MetaDefender service started")
-        base_urls = []
+        base_urls: List[str] = []
         if type(self.config.get("base_url")) == str:
             base_urls = [self.config.get("base_url")]
         elif type(self.config.get("base_url")) == list:
@@ -99,14 +98,14 @@ class MetaDefender(ServiceBase):
                                }
 
         # Get version map for all of the nodes
-        self.session = requests.Session()
+        self.session = Session()
         engine_count = 0
         for node in list(self.nodes.keys()):
             self._get_version_map(node)
             engine_count += self.nodes[node]['engine_count']
 
         if engine_count == 0:
-            raise Exception(f"MetaDefender Core node {node} has an active engine_count of 0")
+            raise Exception(f"MetaDefender Core nodes {list(self.nodes.keys())} have an active engine_count of 0")
 
         # On first launch, choose random node to start with
         if not self.current_node:
@@ -125,13 +124,23 @@ class MetaDefender(ServiceBase):
             self.start_time = time.time()
 
     @staticmethod
-    def _format_engine_name(name: str):
+    def _format_engine_name(name: str) -> str:
+        """
+        This method formats the engine name so that it is nicer to parse/print
+        :param name: The engine name to format
+        :return: The formated engine name
+        """
         new_name = name.lower().replace(" ", "").replace("!", "")
         if new_name.endswith("av"):
             new_name = new_name[:-2]
         return new_name
 
-    def _get_version_map(self, node: str):
+    def _get_version_map(self, node: str) -> None:
+        """
+        Get the versions of all engines running on a given node
+        :param node: The IP of the MetaDefender node
+        :return: None
+        """
         newest_dat = 0
         oldest_dat = now()
         engine_list = []
@@ -183,18 +192,22 @@ class MetaDefender(ServiceBase):
             self.nodes[node]['newest_dat'] = epoch_to_local(newest_dat)[:19]
             self.nodes[node]['oldest_dat'] = epoch_to_local(oldest_dat)[:19]
             self.nodes[node]['engine_list'] = "".join(engine_list)
-        except requests.exceptions.Timeout:
+        except exceptions.Timeout:
             raise Exception(f"Node ({node}) timed out after {self.timeout}s while trying to get engine version map")
-        except requests.ConnectionError:
+        except ConnectionError:
             raise Exception(f"Unable to connect to node ({node}) while trying to get engine version map")
 
-    def get_tool_version(self):
+    def get_tool_version(self) -> str:
+        """
+        This method generates an MD5 hash of all engines for all nodes
+        :return: The MD5 hash of all engine lists
+        """
         engine_lists = ""
         for node in list(self.nodes.keys()):
             engine_lists += self.nodes[node]['engine_list']
         return hashlib.md5(engine_lists.encode('utf-8')).hexdigest()
 
-    def execute(self, request: ServiceRequest):
+    def execute(self, request: ServiceRequest) -> None:
         # Check that the current node has a version map
         while True:
             if self.nodes[self.current_node]['engine_count'] == 0:
@@ -222,22 +235,33 @@ class MetaDefender(ServiceBase):
         elif elapsed_time >= self.config.get("min_node_time"):
             self.new_node(force=False)
 
-    def get_scan_results_by_data_id(self, data_id: str):
+    def get_scan_results_by_data_id(self, data_id: str) -> Response:
+        """
+        This method gets the results from MetaDefender regarding the scanned file
+        :param data_id: The ID of the submission according to MetaDefender
+        :return: The response from the REST API
+        """
         url = urljoin(self.current_node, f"file/{data_id}")
 
         try:
             self.log.debug(f"get_scan_results_by_data_id: GET {url}")
             return self.session.get(url=url, headers=self.headers, timeout=self.timeout)
-        except requests.exceptions.Timeout:
+        except exceptions.Timeout:
             self.new_node(force=True, reset_queue=True)
             raise Exception(f"Node ({self.current_node}) timed out after {self.timeout}s "
                             "while trying to fetch scan results")
-        except requests.ConnectionError:
+        except ConnectionError:
             # MetaDefender inaccessible
             self.new_node(force=True, reset_queue=True)
             raise RecoverableError(f"Unable to reach node ({self.current_node}) while trying to fetch scan results")
 
-    def new_node(self, force, reset_queue=False):
+    def new_node(self, force: bool, reset_queue: bool = False) -> None:
+        """
+        This is method chooses a new node based on a series of factors
+        :param force: Force a new node to be used
+        :param reset_queue: Reset the average time a file sits in a queue
+        :return: None
+        """
         if len(self.nodes) == 1:
             time.sleep(5)
             return
@@ -272,7 +296,12 @@ class MetaDefender(ServiceBase):
                         self.start_time = time.time()
                         return
 
-    def scan_file(self, filename: str):
+    def scan_file(self, filename: str) -> Dict[str, Any]:
+        """
+        This method POSTs the file to the MetaDefender REST API
+        :param filename: The name of the file to be submitted to MetaDefender
+        :return: The JSON response of the scan results
+        """
         # Let's scan the file
         url = urljoin(self.current_node, 'file')
         with open(filename, 'rb') as f:
@@ -281,23 +310,23 @@ class MetaDefender(ServiceBase):
         try:
             self.log.debug(f"scan_file: POST {url}")
             r = self.session.post(url=url, data=data, headers=self.headers, timeout=self.timeout)
-        except requests.exceptions.Timeout:
+        except exceptions.Timeout:
             self.new_node(force=True, reset_queue=True)
             raise Exception(f"Node ({self.current_node}) timed out after {self.timeout}s "
                             "while trying to send file for scanning")
-        except requests.ConnectionError:
+        except ConnectionError:
             # MetaDefender inaccessible
             self.new_node(force=True, reset_queue=True)  # Deactivate the current node which had a connection error
             raise RecoverableError(
                 f"Unable to reach node ({self.current_node}) while trying to send file for scanning")
 
-        if r.status_code == requests.codes.ok:
+        if r.status_code == codes.ok:
             data_id = r.json()['data_id']
             # Give MD some time to scan it!
             time.sleep(1)
             while True:
                 r = self.get_scan_results_by_data_id(data_id=data_id)
-                if r.status_code != requests.codes.ok:
+                if r.status_code != codes.ok:
                     return r.json()
                 try:
                     if r.json()['scan_results']['progress_percentage'] == 100:
@@ -316,7 +345,13 @@ class MetaDefender(ServiceBase):
             raise Exception(f"Unable to scan file due to {r.json()['err']}")
         return r.json()
 
-    def parse_results(self, response: Dict[str, Any]):
+    def parse_results(self, response: Dict[str, Any]) -> Result:
+        """
+        This method parses the response JSON containing the scan results so that it will be displayed nicely in
+        Assemblyline
+        :param response: The raw results from the MetaDefender scan
+        :return: The Result object to be used when displaying in Assemblyline
+        """
         res = Result()
         scan_results = response.get('scan_results', response)
         virus_name = ""
