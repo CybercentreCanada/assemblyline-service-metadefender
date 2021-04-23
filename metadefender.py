@@ -12,13 +12,18 @@ from assemblyline_v4_service.common.base import ServiceBase
 from assemblyline_v4_service.common.request import ServiceRequest
 from assemblyline_v4_service.common.result import Result, ResultSection, Classification, BODY_FORMAT, Heuristic
 
-REVISED_SCORE_MAP = {
+# Specific signature names
+REVISED_SIG_SCORE_MAP = {
     "Ikarus.Trojan-Downloader.VBA.Agent": 0,
     "Ikarus.Trojan-Downloader.MSWord.Agent": 0,
     "Vir.IT eXplorer.Office.VBA_Macro_Heur": 0,
     "NANOAV.Exploit.Xml.CVE-2017-0199.equmby": 0,
     "TACHYON.Suspicious/XOX.Obfus.Gen.2": 100,
-    "Jiangmin.Adware.Agent.aldo": 100,
+}
+
+# Specific keywords found in a signature name
+REVISED_KW_SCORE_MAP = {
+    "adware": 100
 }
 
 
@@ -41,8 +46,13 @@ class AvHitSection(ResultSection):
         )
         signature_name = f'{av_name}.{virus_name}'
         section_heur = Heuristic(heur_id)
-        if signature_name in REVISED_SCORE_MAP:
-            section_heur.add_signature_id(signature_name, REVISED_SCORE_MAP[signature_name])
+        if signature_name in REVISED_SIG_SCORE_MAP:
+            section_heur.add_signature_id(signature_name, REVISED_SIG_SCORE_MAP[signature_name])
+        elif any(kw in signature_name.lower() for kw in REVISED_KW_SCORE_MAP):
+            section_heur.add_signature_id(
+                signature_name,
+                max([REVISED_KW_SCORE_MAP[kw] for kw in REVISED_KW_SCORE_MAP if kw in signature_name.lower()])
+            )
         else:
             section_heur.add_signature_id(signature_name)
         self.heuristic = section_heur
