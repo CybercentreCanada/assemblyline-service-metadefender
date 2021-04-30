@@ -19,6 +19,7 @@ REVISED_SIG_SCORE_MAP = {
     "Vir.IT eXplorer.Office.VBA_Macro_Heur": 0,
     "NANOAV.Exploit.Xml.CVE-2017-0199.equmby": 0,
     "TACHYON.Suspicious/XOX.Obfus.Gen.2": 100,
+    "Vir.IT eXplorer.W97M/Downloader.AB": 0,
 }
 
 # Specific keywords found in a signature name
