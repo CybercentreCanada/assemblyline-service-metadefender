@@ -27,6 +27,9 @@ REVISED_KW_SCORE_MAP = {
     "adware": 100
 }
 
+# AV Blocklist (ignore results)
+AV_BLOCKLIST = ["Antiy-AVL", "APEX", "Jiangmin"]
+
 
 class AvHitSection(ResultSection):
     def __init__(self, av_name: str, virus_name: str, engine: Dict[str, str], heur_id: int) -> None:
@@ -377,6 +380,8 @@ class MetaDefender(ServiceBase):
             scans = scan_results.get('scan_details', scan_results)
             av_scan_times = []
             for majorkey, subdict in sorted(scans.items()):
+                if majorkey in AV_BLOCKLIST:
+                    continue
                 heur_id = None
                 if subdict['scan_result_i'] == 1:           # File is infected
                     virus_name = subdict['threat_found']
