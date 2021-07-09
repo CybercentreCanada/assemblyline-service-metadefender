@@ -14,11 +14,12 @@ from assemblyline_v4_service.common.result import Result, ResultSection, Classif
 
 # Specific signature names
 REVISED_SIG_SCORE_MAP = {
-    "Ikarus.Trojan-Downloader.VBA.Agent": 0,
     "Ikarus.Trojan-Downloader.MSWord.Agent": 0,
-    "Vir.IT eXplorer.Office.VBA_Macro_Heur": 0,
+    "Ikarus.Trojan-Downloader.VBA.Agent": 0,
     "NANOAV.Exploit.Xml.CVE-2017-0199.equmby": 0,
     "TACHYON.Suspicious/XOX.Obfus.Gen.2": 100,
+    "TACHYON.Suspicious/XOX.Obfus.Gen.3": 0,
+    "Vir.IT eXplorer.Office.VBA_Macro_Heur": 0,
     "Vir.IT eXplorer.W97M/Downloader.AB": 0,
 }
 
