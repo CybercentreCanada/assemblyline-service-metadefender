@@ -12,25 +12,6 @@ from assemblyline_v4_service.common.base import ServiceBase
 from assemblyline_v4_service.common.request import ServiceRequest
 from assemblyline_v4_service.common.result import Result, ResultSection, Classification, BODY_FORMAT, Heuristic
 
-# Specific signature names
-REVISED_SIG_SCORE_MAP = {
-    "Ikarus.Trojan-Downloader.MSWord.Agent": 0,
-    "Ikarus.Trojan-Downloader.VBA.Agent": 0,
-    "NANOAV.Exploit.Xml.CVE-2017-0199.equmby": 0,
-    "TACHYON.Suspicious/XOX.Obfus.Gen.2": 100,
-    "TACHYON.Suspicious/XOX.Obfus.Gen.3": 0,
-    "Vir.IT eXplorer.Office.VBA_Macro_Heur": 0,
-    "Vir.IT eXplorer.W97M/Downloader.AB": 0,
-}
-
-# Specific keywords found in a signature name
-REVISED_KW_SCORE_MAP = {
-    "adware": 100
-}
-
-# AV Blocklist (ignore results)
-AV_BLOCKLIST = ["Antiy-AVL", "APEX", "Jiangmin"]
-
 
 class AvHitSection(ResultSection):
     def __init__(self, av_name: str, virus_name: str, engine: Dict[str, str], heur_id: int) -> None:
@@ -51,12 +32,12 @@ class AvHitSection(ResultSection):
         )
         signature_name = f'{av_name}.{virus_name}'
         section_heur = Heuristic(heur_id)
-        if signature_name in REVISED_SIG_SCORE_MAP:
-            section_heur.add_signature_id(signature_name, REVISED_SIG_SCORE_MAP[signature_name])
-        elif any(kw in signature_name.lower() for kw in REVISED_KW_SCORE_MAP):
+        if signature_name in self.sig_score_revision_map:
+            section_heur.add_signature_id(signature_name, self.sig_score_revision_map[signature_name])
+        elif any(kw in signature_name.lower() for kw in self.kw_score_revision_map):
             section_heur.add_signature_id(
                 signature_name,
-                max([REVISED_KW_SCORE_MAP[kw] for kw in REVISED_KW_SCORE_MAP if kw in signature_name.lower()])
+                max([self.kw_score_revision_map[kw] for kw in self.kw_score_revision_map if kw in signature_name.lower()])
             )
         else:
             section_heur.add_signature_id(signature_name)
@@ -84,6 +65,9 @@ class MetaDefender(ServiceBase):
         self.current_node: Optional[str] = None
         self.start_time: Optional[float] = None
         self.headers: Optional[Dict[str, str]] = None
+        self.blocklist: Optional[List[str]] = None
+        self.kw_score_revision_map: Optional[Dict[str, int]] = None
+        self.sig_score_revision_map: Optional[Dict[str, Any]] = None
         api_key = self.config.get("api_key")
         if api_key:
             self.headers = {"apikey": api_key}
@@ -99,6 +83,10 @@ class MetaDefender(ServiceBase):
                 base_urls.append(prepared_base_url)
         else:
             raise Exception("Invalid format for BASE_URL service variable (must be str or list)")
+        av_safelist_config: Dict[str, Any] = self.config.get("av_safelist_config", {})
+        self.blocklist: List[str] = av_safelist_config.get("blocklist", [])
+        self.kw_score_revision_map: Dict[str, int] = av_safelist_config.get("kw_score_revision_map", {})
+        self.sig_score_revision_map = {sig["name"]: sig["score"] for sig in av_safelist_config.get("sig_score_revisions", [])}
 
         # Initialize a list of all nodes with default data
         for index, url in enumerate(base_urls):
@@ -381,7 +369,7 @@ class MetaDefender(ServiceBase):
             scans = scan_results.get('scan_details', scan_results)
             av_scan_times = []
             for majorkey, subdict in sorted(scans.items()):
-                if majorkey in AV_BLOCKLIST:
+                if majorkey in self.blocklist:
                     continue
                 heur_id = None
                 if subdict['scan_result_i'] == 1:           # File is infected
