@@ -44,8 +44,8 @@ Once MetaDefender Core has been installed and activated with your license, the f
 * **max_md_scan_time**: Maximum amount of time to wait for scan results before the MetaDefender server is put on a brief timeout (only applicable when multiple MetaDefender deployments are used)
 * **av_safelist_config**: Dictionary containing details that we will use for revising or omitting antivirus signature hits
   * **blocklist**: A list of antivirus vendors who we want to omit from all results
-  * **kw_score_revision_map**: A dictionary where the keys are the keywords that could be found in signatures and the value is the revised score
-  * **sig_score_revisions**: A list of dictionaries that follow the format `{"name": <name>, "score": <int>}` where the `"name"` is the antivirus signature name which you want to revise the score to (the value of `"score"`)
+  * **kw_score_revision_map**: A dictionary where the keys are the keywords that could be found in signatures, and the value is the revised score
+  * **sig_score_revisions**: A dictionary where the keys are the signatures that you want to revise, and the values are the scores that the signatures will be revised to
 
 ## Updating Antivirus Definitions
 

@@ -83,10 +83,10 @@ class MetaDefender(ServiceBase):
                 base_urls.append(prepared_base_url)
         else:
             raise Exception("Invalid format for BASE_URL service variable (must be str or list)")
-        av_safelist_config: Dict[str, Any] = self.config.get("av_safelist_config", {})
-        self.blocklist: List[str] = av_safelist_config.get("blocklist", [])
-        self.kw_score_revision_map: Dict[str, int] = av_safelist_config.get("kw_score_revision_map", {})
-        self.sig_score_revision_map = {sig["name"]: sig["score"] for sig in av_safelist_config.get("sig_score_revisions", [])}
+        av_config: Dict[str, Any] = self.config.get("av_config", {})
+        self.blocklist: List[str] = av_config.get("blocklist", [])
+        self.kw_score_revision_map: Dict[str, int] = av_config.get("kw_score_revision_map", {})
+        self.sig_score_revision_map = av_config.get("sig_score_revisions", {})
 
         # Initialize a list of all nodes with default data
         for index, url in enumerate(base_urls):
