@@ -25,6 +25,32 @@ config:
   min_node_time: 60
   max_node_time: 300
   max_md_scan_time: 5
+  av_safelist_config:
+    # AV Blocklist (ignore results)
+    blocklist:
+      - "Antiy-AVL"
+      - "APEX"
+      - "Jiangmin"
+    # Specific keywords found in a signature name
+    kw_score_revision_map:
+      adware: 100
+    # Signature names are not valid YAML keys according to the Assemblyline
+    # ODM so we cannot use them in the heuristic signature_score_map. Hence why we're putting this here.
+    sig_score_revisions:
+      - name: "Ikarus.Trojan-Downloader.MSWord.Agent"
+        score: 0
+      - name: "Ikarus.Trojan-Downloader.VBA.Agent"
+        score: 0
+      - name: "Vir.IT eXplorer.Office.VBA_Macro_Heur"
+        score: 0
+      - name: "Vir.IT eXplorer.W97M/Downloader.AB"
+        score: 0
+      - name: "NANOAV.Exploit.Xml.CVE-2017-0199.equmby"
+        score: 0
+      - name: "TACHYON.Suspicious/XOX.Obfus.Gen.2"
+        score: 100
+      - name: "TACHYON.Suspicious/XOX.Obfus.Gen.3"
+        score: 0
 
 heuristics:
   - heur_id: 1
