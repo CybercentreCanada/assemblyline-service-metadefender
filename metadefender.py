@@ -396,7 +396,8 @@ class MetaDefender(ServiceBase):
                 if heur_id is not None:
                     virus_name = virus_name.replace("a variant of ", "")
                     engine = self.nodes[self.current_node]['engine_map'][self._format_engine_name(majorkey)]
-                    av_hit_section = AvHitSection(majorkey, virus_name, engine, heur_id)
+                    av_hit_section = AvHitSection(majorkey, virus_name, engine, heur_id,
+                                                  self.sig_score_revision_map, self.kw_score_revision_map)
                     av_hits.add_subsection(av_hit_section)
                     hit = True
 
