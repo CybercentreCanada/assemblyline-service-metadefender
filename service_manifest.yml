@@ -36,7 +36,7 @@ config:
       adware: 100
     # Signature names are not valid YAML keys according to the Assemblyline
     # ODM so we cannot use them in the heuristic signature_score_map. Hence why we're putting this here.
-    sig_score_revisions:
+    sig_score_revision_map:
       Ikarus.Trojan-Downloader.MSWord.Agent: 0
       Ikarus.Trojan-Downloader.VBA.Agent: 0
       NANOAV.Exploit.Xml.CVE-2017-0199.equmby: 0

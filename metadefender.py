@@ -14,7 +14,8 @@ from assemblyline_v4_service.common.result import Result, ResultSection, Classif
 
 
 class AvHitSection(ResultSection):
-    def __init__(self, av_name: str, virus_name: str, engine: Dict[str, str], heur_id: int) -> None:
+    def __init__(self, av_name: str, virus_name: str, engine: Dict[str, str], heur_id: int,
+                 sig_score_revision_map: Dict[str, int], kw_score_revision_map: Dict[str, int]) -> None:
         title = f"{av_name} identified the file as {virus_name}"
         json_body = dict(
             av_name=av_name,
@@ -32,12 +33,12 @@ class AvHitSection(ResultSection):
         )
         signature_name = f'{av_name}.{virus_name}'
         section_heur = Heuristic(heur_id)
-        if signature_name in self.sig_score_revision_map:
-            section_heur.add_signature_id(signature_name, self.sig_score_revision_map[signature_name])
-        elif any(kw in signature_name.lower() for kw in self.kw_score_revision_map):
+        if signature_name in sig_score_revision_map:
+            section_heur.add_signature_id(signature_name, sig_score_revision_map[signature_name])
+        elif any(kw in signature_name.lower() for kw in kw_score_revision_map):
             section_heur.add_signature_id(
                 signature_name,
-                max([self.kw_score_revision_map[kw] for kw in self.kw_score_revision_map if kw in signature_name.lower()])
+                max([kw_score_revision_map[kw] for kw in kw_score_revision_map if kw in signature_name.lower()])
             )
         else:
             section_heur.add_signature_id(signature_name)
@@ -86,7 +87,7 @@ class MetaDefender(ServiceBase):
         av_config: Dict[str, Any] = self.config.get("av_config", {})
         self.blocklist: List[str] = av_config.get("blocklist", [])
         self.kw_score_revision_map: Dict[str, int] = av_config.get("kw_score_revision_map", {})
-        self.sig_score_revision_map = av_config.get("sig_score_revisions", {})
+        self.sig_score_revision_map: Dict[str, int] = av_config.get("sig_score_revision_map", {})
 
         # Initialize a list of all nodes with default data
         for index, url in enumerate(base_urls):
