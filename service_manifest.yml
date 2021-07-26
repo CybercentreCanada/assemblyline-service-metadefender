@@ -37,13 +37,14 @@ config:
     # Signature names are not valid YAML keys according to the Assemblyline
     # ODM so we cannot use them in the heuristic signature_score_map. Hence why we're putting this here.
     sig_score_revision_map:
-      Ikarus.Trojan-Downloader.MSWord.Agent: 0
-      Ikarus.Trojan-Downloader.VBA.Agent: 0
-      NANOAV.Exploit.Xml.CVE-2017-0199.equmby: 0
       TACHYON.Suspicious/XOX.Obfus.Gen.2: 100
-      TACHYON.Suspicious/XOX.Obfus.Gen.3: 0
-      Vir.IT eXplorer.Office.VBA_Macro_Heur: 0
-      Vir.IT eXplorer.W97M/Downloader.AB: 0
+      # Note the following should be added to the system-level safelist since their revised scores are 0
+#      Ikarus.Trojan-Downloader.MSWord.Agent: 0
+#      Ikarus.Trojan-Downloader.VBA.Agent: 0
+#      NANOAV.Exploit.Xml.CVE-2017-0199.equmby: 0
+#      TACHYON.Suspicious/XOX.Obfus.Gen.3: 0
+#      Vir.IT eXplorer.Office.VBA_Macro_Heur: 0
+#      Vir.IT eXplorer.W97M/Downloader.AB: 0
 
 heuristics:
   - heur_id: 1
