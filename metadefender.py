@@ -8,6 +8,7 @@ from requests import Session, Response, ConnectionError, exceptions, codes
 
 from assemblyline.common.exceptions import RecoverableError
 from assemblyline.common.isotime import iso_to_local, iso_to_epoch, epoch_to_local, now, now_as_local
+from assemblyline_v4_service.common.api import ServiceAPIError
 from assemblyline_v4_service.common.base import ServiceBase
 from assemblyline_v4_service.common.request import ServiceRequest
 from assemblyline_v4_service.common.result import Result, ResultSection, Classification, BODY_FORMAT, Heuristic
@@ -69,9 +70,16 @@ class MetaDefender(ServiceBase):
         self.blocklist: Optional[List[str]] = None
         self.kw_score_revision_map: Optional[Dict[str, int]] = None
         self.sig_score_revision_map: Optional[Dict[str, Any]] = None
+        self.safelist_match: List[str] = []
         api_key = self.config.get("api_key")
         if api_key:
             self.headers = {"apikey": api_key}
+
+        try:
+            safelist = self.get_api_interface().get_safelist(["av.virus_name"])
+            [self.safelist_match.extend(match_list) for _, match_list in safelist.get('match', {}).items()]
+        except ServiceAPIError as e:
+            self.log.warning(f"Couldn't retrieve safelist from service: {e}. Continuing without it..")
 
     def start(self) -> None:
         self.log.debug("MetaDefender service started")
@@ -395,6 +403,8 @@ class MetaDefender(ServiceBase):
 
                 if heur_id is not None:
                     virus_name = virus_name.replace("a variant of ", "")
+                    if virus_name in self.safelist_match:
+                        continue
                     engine = self.nodes[self.current_node]['engine_map'][self._format_engine_name(majorkey)]
                     av_hit_section = AvHitSection(majorkey, virus_name, engine, heur_id,
                                                   self.sig_score_revision_map, self.kw_score_revision_map)
