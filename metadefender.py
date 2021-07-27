@@ -16,7 +16,8 @@ from assemblyline_v4_service.common.result import Result, ResultSection, Classif
 
 class AvHitSection(ResultSection):
     def __init__(self, av_name: str, virus_name: str, engine: Dict[str, str], heur_id: int,
-                 sig_score_revision_map: Dict[str, int], kw_score_revision_map: Dict[str, int]) -> None:
+                 sig_score_revision_map: Dict[str, int], kw_score_revision_map: Dict[str, int],
+                 safelist_match: List[str]) -> None:
         title = f"{av_name} identified the file as {virus_name}"
         json_body = dict(
             av_name=av_name,
@@ -41,6 +42,8 @@ class AvHitSection(ResultSection):
                 signature_name,
                 max([kw_score_revision_map[kw] for kw in kw_score_revision_map if kw in signature_name.lower()])
             )
+        elif virus_name in safelist_match:
+            section_heur.add_signature_id(signature_name, score=0)
         else:
             section_heur.add_signature_id(signature_name)
         self.heuristic = section_heur
@@ -403,11 +406,10 @@ class MetaDefender(ServiceBase):
 
                 if heur_id is not None:
                     virus_name = virus_name.replace("a variant of ", "")
-                    if virus_name in self.safelist_match:
-                        continue
                     engine = self.nodes[self.current_node]['engine_map'][self._format_engine_name(majorkey)]
                     av_hit_section = AvHitSection(majorkey, virus_name, engine, heur_id,
-                                                  self.sig_score_revision_map, self.kw_score_revision_map)
+                                                  self.sig_score_revision_map, self.kw_score_revision_map,
+                                                  self.safelist_match)
                     av_hits.add_subsection(av_hit_section)
                     hit = True
 
