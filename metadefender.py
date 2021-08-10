@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import random
 import time
 from typing import Dict, Any, Optional, List
@@ -116,8 +117,17 @@ class MetaDefender(ServiceBase):
         self.session = Session()
         engine_count = 0
         for node in list(self.nodes.keys()):
-            self._get_version_map(node)
+            try:
+                self._get_version_map(node)
+            except Exception as e:
+                self.log.error(f"Unable to contact {node} due to {e}. Removing from node list.")
+                del self.nodes[node]
+                continue
             engine_count += self.nodes[node]['engine_count']
+
+        if len(list(self.nodes.keys())) == 0:
+            raise Exception("All MetaDefender Core nodes are down. Please ensure that the URLs are correct in the "
+                            "service config and that the MetaDefender Core REST API is running at each one.")
 
         if engine_count == 0:
             raise Exception(f"MetaDefender Core nodes {list(self.nodes.keys())} have an active engine_count of 0")
