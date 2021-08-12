@@ -253,7 +253,7 @@ class MetaDefender(ServiceBase):
                                     f"{self.nodes[self.current_node]['newest_dat']}")
 
         # Compare queue time of current node with new random node after a minimum run time on current node
-        elapsed_time = self.start_time - time.time()
+        elapsed_time = time.time() - self.start_time
         if elapsed_time >= self.config.get("max_node_time"):
             self.new_node(force=True)
         elif elapsed_time >= self.config.get("min_node_time"):
@@ -380,16 +380,18 @@ class MetaDefender(ServiceBase):
         scan_results = response.get('scan_results', response)
         virus_name = ""
         process_results = response.get('process_info', response)
+        hit = False
+        fail = False
+        processed = {}
         if scan_results is not None and scan_results.get('progress_percentage') == 100:
-            hit = False
-            fail = False
             no_threat_detected = []
             av_hits = ResultSection('AV Detections as Infected or Suspicious')
             av_fails = ResultSection('Failed to Scan or No Threats Detected')
 
             scans = scan_results.get('scan_details', scan_results)
             av_scan_times = []
-            for majorkey, subdict in sorted(scans.items()):
+            modified_scans = {key: value for key, value in scans.items() if key not in ["progress_percentage"]}
+            for majorkey, subdict in sorted(modified_scans.items()):
                 if majorkey in self.blocklist:
                     continue
                 heur_id = None
@@ -451,7 +453,6 @@ class MetaDefender(ServiceBase):
         if process_results is not None and process_results.get('progress_percentage') == 100:
             hit = False
             fail = False
-            cdr_fails = ResultSection('CDR Failed or No Malicious Files Found')
             processed = process_results.get('post_processing', process_results)
             if processed['actions_failed']:
                 fail = True
@@ -463,6 +464,7 @@ class MetaDefender(ServiceBase):
                                              body=json.dumps(processed))
             res.add_section(cdr_json_section)
         if fail:
+            cdr_fails = ResultSection('CDR Failed or No Malicious Files Found')
             res.add_section(cdr_fails)
 
         return res
