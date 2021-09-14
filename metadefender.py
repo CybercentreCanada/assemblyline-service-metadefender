@@ -366,7 +366,7 @@ class MetaDefender(ServiceBase):
             self.nodes[self.current_node]['timeout_count'] = 0
             self.nodes[self.current_node]['timeout'] = 0
         else:
-            raise Exception(f"Unable to scan file due to {r.json()['err']}")
+            raise Exception(f"Unable to scan file on host {url} due to {r.json()['err']}")
         return r.json()
 
     def parse_results(self, response: Dict[str, Any]) -> Result:
