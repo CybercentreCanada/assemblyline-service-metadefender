@@ -40,24 +40,24 @@ def check_section_equality(this, that) -> bool:
     # Heuristics also need their own equality checks
     if this.heuristic and that.heuristic:
         heuristic_equality = this.heuristic.definition.attack_id == that.heuristic.definition.attack_id and \
-                             this.heuristic.definition.classification == that.heuristic.definition.classification and \
-                             this.heuristic.definition.description == that.heuristic.definition.description and \
-                             this.heuristic.definition.filetype == that.heuristic.definition.filetype and \
-                             this.heuristic.definition.heur_id == that.heuristic.definition.heur_id and \
-                             this.heuristic.definition.id == that.heuristic.definition.id and \
-                             this.heuristic.definition.max_score == that.heuristic.definition.max_score and \
-                             this.heuristic.definition.name == that.heuristic.definition.name and \
-                             this.heuristic.definition.score == that.heuristic.definition.score and \
-                             this.heuristic.definition.signature_score_map == \
-                             that.heuristic.definition.signature_score_map
+            this.heuristic.definition.classification == that.heuristic.definition.classification and \
+            this.heuristic.definition.description == that.heuristic.definition.description and \
+            this.heuristic.definition.filetype == that.heuristic.definition.filetype and \
+            this.heuristic.definition.heur_id == that.heuristic.definition.heur_id and \
+            this.heuristic.definition.id == that.heuristic.definition.id and \
+            this.heuristic.definition.max_score == that.heuristic.definition.max_score and \
+            this.heuristic.definition.name == that.heuristic.definition.name and \
+            this.heuristic.definition.score == that.heuristic.definition.score and \
+            this.heuristic.definition.signature_score_map == \
+            that.heuristic.definition.signature_score_map
 
         result_heuristic_equality = heuristic_equality and \
-                                    this.heuristic.attack_ids == that.heuristic.attack_ids and \
-                                    this.heuristic.frequency == that.heuristic.frequency and \
-                                    this.heuristic.heur_id == that.heuristic.heur_id and \
-                                    this.heuristic.score == that.heuristic.score and \
-                                    this.heuristic.score_map == that.heuristic.score_map and \
-                                    this.heuristic.signatures == that.heuristic.signatures
+            this.heuristic.attack_ids == that.heuristic.attack_ids and \
+            this.heuristic.frequency == that.heuristic.frequency and \
+            this.heuristic.heur_id == that.heuristic.heur_id and \
+            this.heuristic.score == that.heuristic.score and \
+            this.heuristic.score_map == that.heuristic.score_map and \
+            this.heuristic.signatures == that.heuristic.signatures
 
     elif not this.heuristic and not that.heuristic:
         result_heuristic_equality = True
@@ -66,20 +66,23 @@ def check_section_equality(this, that) -> bool:
 
     # Assuming we are given the "root section" at all times, it is safe to say that we don't need to confirm parent
     current_section_equality = result_heuristic_equality and \
-                               this.body == that.body and \
-                               this.body_format == that.body_format and \
-                               this.classification == that.classification and \
-                               this.depth == that.depth and \
-                               len(this.subsections) == len(that.subsections) and \
-                               this.title_text == that.title_text and \
-                               this.tags == that.tags
+        this.body == that.body and \
+        this.body_format == that.body_format and \
+        this.classification == that.classification and \
+        this.depth == that.depth and \
+        len(this.subsections) == len(that.subsections) and \
+        this.title_text == that.title_text and \
+        this.tags == that.tags
 
     if not current_section_equality:
+        print(this.heuristic.__dict__)
+        print(that.heuristic.__dict__)
         return False
 
     for index, subsection in enumerate(this.subsections):
         subsection_equality = check_section_equality(subsection, that.subsections[index])
         if not subsection_equality:
+            print("nope")
             return False
 
     return True
@@ -133,7 +136,7 @@ class TestAvHitSection:
     @staticmethod
     def test_init(mocker):
         from json import dumps
-        from assemblyline_v4_service.common.result import BODY_FORMAT, ResultSection, Heuristic
+        from assemblyline_v4_service.common.result import BODY_FORMAT, ResultSection
         mocker.patch("assemblyline_v4_service.common.api.ServiceAPIError")
         from metadefender import AvHitSection
         av_name = "blah"
@@ -144,13 +147,14 @@ class TestAvHitSection:
         kw_score_rev_map = {}
         safelist_match = []
         actual_res_sec = AvHitSection(av_name, virus_name, engine, heur_id, sig_score_rev_map,
-                                     kw_score_rev_map, safelist_match)
+                                      kw_score_rev_map, safelist_match)
         correct_result_section = ResultSection(f"{av_name} identified the file as {virus_name}")
-        correct_result_section.heuristic = Heuristic(1)
+        correct_result_section.set_heuristic(1)
         correct_result_section.heuristic.add_signature_id(f"{av_name}.{virus_name}")
-        correct_result_section.tags = {"av.virus_name": [virus_name]}
-        correct_result_section.body = dumps({"av_name": av_name, "virus_name": virus_name, "scan_result": "infected", "engine_version": "unknown", "engine_definition_time": "unknown"})
-        correct_result_section.body_format = BODY_FORMAT.KEY_VALUE
+        correct_result_section.add_tag("av.virus_name", virus_name)
+        correct_result_section.set_body(dumps(
+            {"av_name": av_name, "virus_name": virus_name, "scan_result": "infected", "engine_version": "unknown",
+             "engine_definition_time": "unknown"}), BODY_FORMAT.KEY_VALUE)
         assert check_section_equality(actual_res_sec, correct_result_section)
 
         engine = {"version": "blah", "def_time": 1}
@@ -158,34 +162,49 @@ class TestAvHitSection:
         safelist_match = ["blah"]
         actual_res_sec = AvHitSection(av_name, virus_name, engine, heur_id, sig_score_rev_map,
                                       kw_score_rev_map, safelist_match)
-        correct_result_section.tags = {"av.virus_name": [virus_name]}
-        correct_result_section.heuristic = Heuristic(2)
+        correct_result_section = ResultSection(f"{av_name} identified the file as {virus_name}")
+        correct_result_section.add_tag("av.virus_name", virus_name)
+        correct_result_section.set_heuristic(2)
         correct_result_section.heuristic.add_signature_id(f"{av_name}.{virus_name}", 0)
-        correct_result_section.body = dumps({"av_name": av_name, "virus_name": virus_name, "scan_result": "suspicious", "engine_version": "blah", "engine_definition_time": 1})
+        correct_result_section.set_body(dumps(
+            {"av_name": av_name, "virus_name": virus_name, "scan_result": "suspicious", "engine_version": "blah",
+             "engine_definition_time": 1}), BODY_FORMAT.KEY_VALUE)
         assert check_section_equality(actual_res_sec, correct_result_section)
 
         kw_score_rev_map = {"bla": 1}
         actual_res_sec = AvHitSection(av_name, virus_name, engine, heur_id, sig_score_rev_map,
                                       kw_score_rev_map, safelist_match)
-        correct_result_section.heuristic = Heuristic(2)
+        correct_result_section = ResultSection(f"{av_name} identified the file as {virus_name}")
+        correct_result_section.add_tag("av.virus_name", virus_name)
+        correct_result_section.set_heuristic(2)
         correct_result_section.heuristic.add_signature_id(f"{av_name}.{virus_name}", 1)
-        correct_result_section.body = dumps({"av_name": av_name, "virus_name": virus_name, "scan_result": "suspicious", "engine_version": "blah", "engine_definition_time": 1})
+        correct_result_section.set_body(dumps(
+            {"av_name": av_name, "virus_name": virus_name, "scan_result": "suspicious", "engine_version": "blah",
+             "engine_definition_time": 1}), BODY_FORMAT.KEY_VALUE)
         assert check_section_equality(actual_res_sec, correct_result_section)
 
         kw_score_rev_map = {"bla": 1, "h": 2}
         actual_res_sec = AvHitSection(av_name, virus_name, engine, heur_id, sig_score_rev_map,
                                       kw_score_rev_map, safelist_match)
-        correct_result_section.heuristic = Heuristic(2)
+        correct_result_section = ResultSection(f"{av_name} identified the file as {virus_name}")
+        correct_result_section.add_tag("av.virus_name", virus_name)
+        correct_result_section.set_heuristic(2)
         correct_result_section.heuristic.add_signature_id(f"{av_name}.{virus_name}", 2)
-        correct_result_section.body = dumps({"av_name": av_name, "virus_name": virus_name, "scan_result": "suspicious", "engine_version": "blah", "engine_definition_time": 1})
+        correct_result_section.set_body(dumps(
+            {"av_name": av_name, "virus_name": virus_name, "scan_result": "suspicious", "engine_version": "blah",
+             "engine_definition_time": 1}), BODY_FORMAT.KEY_VALUE)
         assert check_section_equality(actual_res_sec, correct_result_section)
 
         sig_score_rev_map = {f"{av_name}.{virus_name}": 10}
         actual_res_sec = AvHitSection(av_name, virus_name, engine, heur_id, sig_score_rev_map,
                                       kw_score_rev_map, safelist_match)
-        correct_result_section.heuristic = Heuristic(2)
+        correct_result_section = ResultSection(f"{av_name} identified the file as {virus_name}")
+        correct_result_section.add_tag("av.virus_name", virus_name)
+        correct_result_section.set_heuristic(2)
         correct_result_section.heuristic.add_signature_id(f"{av_name}.{virus_name}", 10)
-        correct_result_section.body = dumps({"av_name": av_name, "virus_name": virus_name, "scan_result": "suspicious", "engine_version": "blah", "engine_definition_time": 1})
+        correct_result_section.set_body(dumps(
+            {"av_name": av_name, "virus_name": virus_name, "scan_result": "suspicious", "engine_version": "blah",
+             "engine_definition_time": 1}), BODY_FORMAT.KEY_VALUE)
         assert check_section_equality(actual_res_sec, correct_result_section)
 
 
@@ -207,13 +226,13 @@ class TestAvErrorSection:
         engine = {}
         actual_res_sec = AvErrorSection(av_name, engine)
         correct_result_section = ResultSection(f"{av_name} failed to scan the file")
-        correct_result_section.body = ""
+        correct_result_section.set_body("")
         assert check_section_equality(actual_res_sec, correct_result_section)
 
         engine = {"version": "blah", "def_time": "blah"}
         actual_res_sec = AvErrorSection(av_name, engine)
         correct_result_section = ResultSection(f"{av_name} failed to scan the file")
-        correct_result_section.body = f"Engine: {engine['version']} :: Definition: {engine['def_time']}"
+        correct_result_section.set_body(f"Engine: {engine['version']} :: Definition: {engine['def_time']}")
         assert check_section_equality(actual_res_sec, correct_result_section)
 
 
@@ -275,14 +294,18 @@ class TestMetaDefender:
         metadefender_class_instance.nodes[sample_url] = {"engine_count": 1}
         metadefender_class_instance.start()
         assert metadefender_class_instance.blocklist == metadefender_class_instance.config["av_config"]["blocklist"]
-        assert metadefender_class_instance.kw_score_revision_map == metadefender_class_instance.config["av_config"]["kw_score_revision_map"]
-        assert metadefender_class_instance.sig_score_revision_map == metadefender_class_instance.config["av_config"]["sig_score_revision_map"]
+        assert metadefender_class_instance.kw_score_revision_map == metadefender_class_instance.config["av_config"][
+            "kw_score_revision_map"]
+        assert metadefender_class_instance.sig_score_revision_map == metadefender_class_instance.config["av_config"][
+            "sig_score_revision_map"]
         assert isinstance(metadefender_class_instance.session, Session)
         assert metadefender_class_instance.current_node == sample_url
         assert type(metadefender_class_instance.start_time) is float
         assert metadefender_class_instance.nodes[sample_url] == {"engine_count": 1}
         assert metadefender_class_instance.nodes[original_value].pop("oldest_dat")
-        assert metadefender_class_instance.nodes[original_value] == {'average_queue_time': 0, 'engine_count': 0, 'engine_list': 'default', 'engine_map': {}, 'file_count': 0, 'newest_dat': '1970-01-01 00:00:00', 'queue_times': []}
+        assert metadefender_class_instance.nodes[original_value] == {
+            'average_queue_time': 0, 'engine_count': 0, 'engine_list': 'default', 'engine_map': {},
+            'file_count': 0, 'newest_dat': '1970-01-01 00:00:00', 'queue_times': []}
 
     @staticmethod
     @pytest.mark.parametrize("name, correct_name",
@@ -307,7 +330,8 @@ class TestMetaDefender:
             m.get(f"{node}stat/engines", status_code=200, json=[])
             metadefender_class_instance._get_version_map(node)
             metadefender_class_instance.nodes[node].pop("oldest_dat")
-            assert metadefender_class_instance.nodes[node] == {"engine_count": 0, "newest_dat": epoch_to_local(0)[:19], "engine_list": ""}
+            assert metadefender_class_instance.nodes[node] == {
+                "engine_count": 0, "newest_dat": epoch_to_local(0)[:19], "engine_list": ""}
 
             with pytest.raises(Exception):
                 m.get(f"{node}stat/engines", exc=exceptions.Timeout)
@@ -319,42 +343,71 @@ class TestMetaDefender:
 
             # MD Version 4
             metadefender_class_instance.nodes[node] = {"engine_map": {}}
-            m.get(f"{node}stat/engines", status_code=200, json=[{"active": False, "eng_name": "blah", "eng_ver": "blah", "def_time": "1999-09-09T12:12:12", "engine_type": "blah"}])
+            m.get(
+                f"{node}stat/engines", status_code=200,
+                json=[{"active": False, "eng_name": "blah", "eng_ver": "blah", "def_time": "1999-09-09T12:12:12",
+                       "engine_type": "blah"}])
             metadefender_class_instance._get_version_map(node)
             metadefender_class_instance.nodes[node].pop("oldest_dat")
-            assert metadefender_class_instance.nodes[node] == {"engine_count": 0, "newest_dat": '1999-09-09 12:12:14', "engine_list": 'blahblah1999-09-09T12:12:12', "engine_map": {'blah': {'def_time': '1999-09-09 12:12:14', 'version': 'blah'}}}
+            assert metadefender_class_instance.nodes[node] == {
+                "engine_count": 0, "newest_dat": '1999-09-09 12:12:14', "engine_list": 'blahblah1999-09-09T12:12:12',
+                "engine_map": {'blah': {'def_time': '1999-09-09 12:12:14', 'version': 'blah'}}}
 
-            m.get(f"{node}stat/engines", status_code=200, json=[{"active": True, "state": "blah", "eng_name": "blah", "eng_ver": "blah", "def_time": "1999-09-09T12:12:12", "engine_type": "blah"}])
+            m.get(f"{node}stat/engines", status_code=200,
+                  json=[{"active": True, "state": "blah", "eng_name": "blah", "eng_ver": "blah",
+                         "def_time": "1999-09-09T12:12:12", "engine_type": "blah"}])
             metadefender_class_instance._get_version_map(node)
             metadefender_class_instance.nodes[node].pop("oldest_dat")
-            assert metadefender_class_instance.nodes[node] == {"engine_count": 1, "newest_dat": '1999-09-09 12:12:14', "engine_list": 'blahblah1999-09-09T12:12:12', "engine_map": {'blah': {'def_time': '1999-09-09 12:12:14', 'version': 'blah'}}}
+            assert metadefender_class_instance.nodes[node] == {
+                "engine_count": 1, "newest_dat": '1999-09-09 12:12:14', "engine_list": 'blahblah1999-09-09T12:12:12',
+                "engine_map": {'blah': {'def_time': '1999-09-09 12:12:14', 'version': 'blah'}}}
 
             # MD Version 3
             metadefender_class_instance.config["md_version"] = 3
-            m.get(f"{node}stat/engines", status_code=200, json=[{"active": False, "eng_name": "blah", "eng_ver": "blah", "def_time": "09-09-1999T12:12:12", "engine_type": "blah", "eng_type": "blah"}])
+            m.get(
+                f"{node}stat/engines", status_code=200,
+                json=[{"active": False, "eng_name": "blah", "eng_ver": "blah", "def_time": "09-09-1999T12:12:12",
+                       "engine_type": "blah", "eng_type": "blah"}])
             metadefender_class_instance._get_version_map(node)
             metadefender_class_instance.nodes[node].pop("oldest_dat")
-            assert metadefender_class_instance.nodes[node] == {"engine_count": 0, "newest_dat": '1999-09-09 12:12:12', "engine_list": 'blahblah1999-09-09T12:12:12Z', "engine_map": {'blah': {'def_time': '1999-09-09 12:12:12', 'version': 'blah'}}}
+            assert metadefender_class_instance.nodes[node] == {
+                "engine_count": 0, "newest_dat": '1999-09-09 12:12:12', "engine_list": 'blahblah1999-09-09T12:12:12Z',
+                "engine_map": {'blah': {'def_time': '1999-09-09 12:12:12', 'version': 'blah'}}}
 
             # etype
             for etype in ["av", "Bundled engine"]:
-                m.get(f"{node}stat/engines", status_code=200, json=[{"active": False, "eng_name": "blah", "eng_ver": "blah", "def_time": "09-09-1999T12:12:12", "engine_type": "blah", "eng_type": etype}])
+                m.get(
+                    f"{node}stat/engines", status_code=200,
+                    json=[{"active": False, "eng_name": "blah", "eng_ver": "blah", "def_time": "09-09-1999T12:12:12",
+                           "engine_type": "blah", "eng_type": etype}])
                 metadefender_class_instance._get_version_map(node)
-                assert metadefender_class_instance.nodes[node] == {"engine_count": 0, "newest_dat": '1999-09-09 12:12:12', "engine_list": 'blahblah1999-09-09T12:12:12Z', "engine_map": {'blah': {'def_time': '1999-09-09 12:12:12', 'version': 'blah'}}, "oldest_dat": '1999-09-09 12:12:12',}
+                assert metadefender_class_instance.nodes[node] == {
+                    "engine_count": 0, "newest_dat": '1999-09-09 12:12:12', "engine_list":
+                    'blahblah1999-09-09T12:12:12Z',
+                    "engine_map": {'blah': {'def_time': '1999-09-09 12:12:12', 'version': 'blah'}},
+                    "oldest_dat": '1999-09-09 12:12:12', }
 
             # Invalid MD Version
             metadefender_class_instance.config["md_version"] = 2
             with pytest.raises(Exception):
-                m.get(f"{node}stat/engines", status_code=200, json=[{"active": False, "eng_name": "blah", "eng_ver": "blah", "def_time": "09-09-1999T12:12:12", "engine_type": "blah", "eng_type": "blah"}])
+                m.get(
+                    f"{node}stat/engines", status_code=200,
+                    json=[{"active": False, "eng_name": "blah", "eng_ver": "blah", "def_time": "09-09-1999T12:12:12",
+                           "engine_type": "blah", "eng_type": "blah"}])
                 metadefender_class_instance._get_version_map(node)
 
             # Failed states
             metadefender_class_instance.config["md_version"] = 4
             for state in ["removed", "temporary failed", "permanently failed"]:
-                m.get(f"{node}stat/engines", status_code=200, json=[{"active": False, "state": state, "eng_name": "blah", "eng_ver": "blah", "def_time": "1999-09-09T12:12:12", "engine_type": "blah"}])
+                m.get(f"{node}stat/engines", status_code=200,
+                      json=[{"active": False, "state": state, "eng_name": "blah", "eng_ver": "blah",
+                             "def_time": "1999-09-09T12:12:12", "engine_type": "blah"}])
                 metadefender_class_instance._get_version_map(node)
                 metadefender_class_instance.nodes[node].pop("oldest_dat")
-                assert metadefender_class_instance.nodes[node] == {"engine_count": 0, "newest_dat": '1999-09-09 12:12:14', "engine_list": 'blahblah1999-09-09T12:12:12', "engine_map": {'blah': {'def_time': '1999-09-09 12:12:14', 'version': 'blah'}}}
+                assert metadefender_class_instance.nodes[node] == {
+                    "engine_count": 0, "newest_dat": '1999-09-09 12:12:14',
+                    "engine_list": 'blahblah1999-09-09T12:12:12',
+                    "engine_map": {'blah': {'def_time': '1999-09-09 12:12:14', 'version': 'blah'}}}
 
     @staticmethod
     def test_get_tool_version(metadefender_class_instance):
@@ -542,7 +595,8 @@ class TestMetaDefender:
             success_resp._content = b'{"scan_results": {"progress_percentage": 100}}'
             mocker.patch.object(metadefender_class_instance, "get_scan_results_by_data_id", return_value=success_resp)
             assert metadefender_class_instance.scan_file(file_name) == {'scan_results': {'progress_percentage': 100}}
-            assert metadefender_class_instance.nodes[metadefender_class_instance.current_node] == {"timeout_count": 0, "timeout": 0}
+            assert metadefender_class_instance.nodes[metadefender_class_instance.current_node] == {
+                "timeout_count": 0, "timeout": 0}
 
             success_resp._content = b'{"scan_results": {}}'
             mocker.patch.object(metadefender_class_instance, "get_scan_results_by_data_id", return_value=success_resp)
@@ -550,28 +604,125 @@ class TestMetaDefender:
                 metadefender_class_instance.scan_file(file_name)
 
     @staticmethod
-    @pytest.mark.parametrize("response, correct_res_secs",
-                             [
-                                 ({}, []),
-                                 ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 1, "threat_found": "blah", "scan_time": "blah"}}, "file_info": {"file_size": "blah"}, "process_info": {"queue_time": "blah", "processing_time": "blah"}}, [{"title_text": 'AV Detections as Infected or Suspicious', "subsections": [{"title_text": 'z identified the file as blah', "body": '{"av_name": "z", "virus_name": "blah", "scan_result": "infected", "engine_version": "blah", "engine_definition_time": "blah"}', "tags": {'av.virus_name': ['blah']}, "heuristic": {"heur_id": 1, "signatures": {'z.blah': 1}}}]}, {"title_text": 'CDR Successfully Executed', "body_format": "JSON", "body": "{}"}]),
-                                 ({"scan_results": {"progress_percentage": 100, "a": {"scan_result_i": 1, "threat_found": "blah", "scan_time": "blah"}}, "file_info": {"file_size": "blah"}, "process_info": {"queue_time": "blah", "processing_time": "blah"}}, [{"title_text": 'AV Detections as Infected or Suspicious', "subsections": [{"title_text": 'z identified the file as blah', "body": '{"av_name": "z", "virus_name": "blah", "scan_result": "infected", "engine_version": "blah", "engine_definition_time": "blah"}', "tags": {'av.virus_name': ['blah']}, "heuristic": {"heur_id": 1, "signatures": {'z.blah': 1}}}]}, {"title_text": 'CDR Successfully Executed', "body_format": "JSON", "body": "{}"}]),
-                                 ({"scan_results": {"progress_percentage": 100, "a": {"scan_result_i": 1, "threat_found": "blah", "scan_time": "blah"}}, "file_info": {"file_size": "blah"}, "process_info": {"queue_time": "blah", "processing_time": "blah"}}, [{"title_text": 'AV Detections as Infected or Suspicious', "subsections": [{"title_text": 'z identified the file as blah', "body": '{"av_name": "z", "virus_name": "blah", "scan_result": "infected", "engine_version": "blah", "engine_definition_time": "blah"}', "tags": {'av.virus_name': ['blah']}, "heuristic": {"heur_id": 1, "signatures": {'z.blah': 1}}}]}, {"title_text": 'CDR Successfully Executed', "body_format": "JSON", "body": "{}"}]),
-                                 ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 2, "threat_found": "blah", "scan_time": "blah"}}, "file_info": {"file_size": "blah"}, "process_info": {"queue_time": "blah", "processing_time": "blah"}}, [{"title_text": 'AV Detections as Infected or Suspicious', "subsections": [{"title_text": 'z identified the file as blah', "body": '{"av_name": "z", "virus_name": "blah", "scan_result": "suspicious", "engine_version": "blah", "engine_definition_time": "blah"}', "tags": {'av.virus_name': ['blah']}, "heuristic": {"heur_id": 2, "signatures": {'z.blah': 1}}}]}, {"title_text": 'CDR Successfully Executed', "body_format": "JSON", "body": "{}"}]),
-                                 ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 10, "scan_time": "blah"}}, "file_info": {"file_size": "blah"}, "process_info": {"queue_time": "blah", "processing_time": "blah"}}, [{"title_text": 'CDR Failed or No Malicious Files Found'}]),
-                                 ({"scan_results": {"progress_percentage": 100, "b": {"scan_result_i": 10, "scan_time": "blah"}}, "file_info": {"file_size": "blah"}, "process_info": {"queue_time": "blah", "processing_time": "blah"}}, [{"title_text": 'CDR Failed or No Malicious Files Found'}]),
-                                 ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 3, "scan_time": "blah"}}, "file_info": {"file_size": "blah"}, "process_info": {"queue_time": "blah", "processing_time": "blah"}}, [{"title_text": 'CDR Failed or No Malicious Files Found'}]),
-                                 ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 0, "scan_time": "blah"}}, "file_info": {"file_size": "blah"}, "process_info": {"queue_time": "blah", "processing_time": "blah"}}, [{"title_text": 'CDR Failed or No Malicious Files Found'}]),
-                                 ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 0, "scan_time": "blah"}}, "file_info": {"file_size": "blah"}, "process_info": {"queue_time": "blah", "processing_time": "blah", "progress_percentage": 100, "post_processing": {"actions_failed": ["blah"], "actions_ran": []}}}, [{"title_text": 'CDR Failed or No Malicious Files Found'}]),
-                                 ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 0, "scan_time": "blah"}}, "file_info": {"file_size": "blah"}, "process_info": {"queue_time": "blah", "processing_time": "blah", "progress_percentage": 100, "post_processing": {"actions_failed": [], "actions_ran": ["blah"]}}}, [{"title_text": 'CDR Successfully Executed', "body_format": "JSON", "body": '{"actions_failed": [], "actions_ran": ["blah"]}'}]),
-                                 ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 0, "scan_time": "blah"}, "y": {"scan_result_i": 1, "scan_time": "blah", "threat_found": "blah"}}, "file_info": {"file_size": "blah"}, "process_info": {"queue_time": "blah", "processing_time": "blah", "progress_percentage": 100, "post_processing": {"actions_failed": [], "actions_ran": ["blah"]}}}, [{"title_text": 'AV Detections as Infected or Suspicious', "subsections": [{"title_text": 'y identified the file as blah', "tags": {'av.virus_name': ['blah']}, "body": '{"av_name": "y", "virus_name": "blah", "scan_result": "infected", "engine_version": "blah", "engine_definition_time": "blah"}', "body_format": "KEY_VALUE", "heuristic": {"heur_id": 1, "signatures": {'y.blah': 1}}}]}, {"title_text": 'Failed to Scan or No Threats Detected', "subsections": [{"title_text": 'No Threat Detected by AV Engine(s)', "body_format": "KEY_VALUE", "body": '{"no_threat_detected": ["z"]}'}]}, {"title_text": 'CDR Successfully Executed', "body": '{"actions_failed": [], "actions_ran": ["blah"]}', "body_format": "JSON"}]),
-                             ])
+    @pytest.mark.parametrize(
+        "response, correct_res_secs",
+        [({},
+          []),
+         ({
+             "scan_results":
+             {"progress_percentage": 100, "z": {"scan_result_i": 1, "threat_found": "blah", "scan_time": "blah"}},
+             "file_info": {"file_size": "blah"},
+             "process_info": {"queue_time": "blah", "processing_time": "blah"}},
+          [{"title_text": 'AV Detections as Infected or Suspicious',
+            "subsections":
+            [{"title_text": 'z identified the file as blah',
+              "body":
+              '{"av_name": "z", "virus_name": "blah", "scan_result": "infected", "engine_version": "blah", "engine_definition_time": "blah"}',
+              "tags": {'av.virus_name': ['blah']},
+              "heuristic": {"heur_id": 1, "signatures": {'z.blah': 1}}}]},
+           {"title_text": 'CDR Successfully Executed', "body_format": "JSON", "body": "{}"}]),
+         ({
+             "scan_results":
+             {"progress_percentage": 100, "a": {"scan_result_i": 1, "threat_found": "blah", "scan_time": "blah"}},
+             "file_info": {"file_size": "blah"},
+             "process_info": {"queue_time": "blah", "processing_time": "blah"}},
+          [{"title_text": 'AV Detections as Infected or Suspicious',
+            "subsections":
+            [{"title_text": 'z identified the file as blah',
+              "body":
+              '{"av_name": "z", "virus_name": "blah", "scan_result": "infected", "engine_version": "blah", "engine_definition_time": "blah"}',
+              "tags": {'av.virus_name': ['blah']},
+              "heuristic": {"heur_id": 1, "signatures": {'z.blah': 1}}}]},
+           {"title_text": 'CDR Successfully Executed', "body_format": "JSON", "body": "{}"}]),
+         ({
+             "scan_results":
+             {"progress_percentage": 100, "a": {"scan_result_i": 1, "threat_found": "blah", "scan_time": "blah"}},
+             "file_info": {"file_size": "blah"},
+             "process_info": {"queue_time": "blah", "processing_time": "blah"}},
+          [{"title_text": 'AV Detections as Infected or Suspicious',
+            "subsections":
+            [{"title_text": 'z identified the file as blah',
+              "body":
+              '{"av_name": "z", "virus_name": "blah", "scan_result": "infected", "engine_version": "blah", "engine_definition_time": "blah"}',
+              "tags": {'av.virus_name': ['blah']},
+              "heuristic": {"heur_id": 1, "signatures": {'z.blah': 1}}}]},
+           {"title_text": 'CDR Successfully Executed', "body_format": "JSON", "body": "{}"}]),
+         ({
+             "scan_results":
+             {"progress_percentage": 100, "z": {"scan_result_i": 2, "threat_found": "blah", "scan_time": "blah"}},
+             "file_info": {"file_size": "blah"},
+             "process_info": {"queue_time": "blah", "processing_time": "blah"}},
+          [{"title_text": 'AV Detections as Infected or Suspicious',
+            "subsections":
+            [{"title_text": 'z identified the file as blah',
+              "body":
+              '{"av_name": "z", "virus_name": "blah", "scan_result": "suspicious", "engine_version": "blah", "engine_definition_time": "blah"}',
+              "tags": {'av.virus_name': ['blah']},
+              "heuristic": {"heur_id": 2, "signatures": {'z.blah': 1}}}]},
+           {"title_text": 'CDR Successfully Executed', "body_format": "JSON", "body": "{}"}]),
+         ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 10, "scan_time": "blah"}},
+           "file_info": {"file_size": "blah"},
+           "process_info": {"queue_time": "blah", "processing_time": "blah"}},
+          [{"title_text": 'CDR Failed or No Malicious Files Found'}]),
+         ({"scan_results": {"progress_percentage": 100, "b": {"scan_result_i": 10, "scan_time": "blah"}},
+           "file_info": {"file_size": "blah"},
+           "process_info": {"queue_time": "blah", "processing_time": "blah"}},
+          [{"title_text": 'CDR Failed or No Malicious Files Found'}]),
+         ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 3, "scan_time": "blah"}},
+           "file_info": {"file_size": "blah"},
+           "process_info": {"queue_time": "blah", "processing_time": "blah"}},
+          [{"title_text": 'CDR Failed or No Malicious Files Found'}]),
+         ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 0, "scan_time": "blah"}},
+           "file_info": {"file_size": "blah"},
+           "process_info": {"queue_time": "blah", "processing_time": "blah"}},
+          [{"title_text": 'CDR Failed or No Malicious Files Found'}]),
+         ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 0, "scan_time": "blah"}},
+           "file_info": {"file_size": "blah"},
+           "process_info":
+           {"queue_time": "blah", "processing_time": "blah", "progress_percentage": 100,
+            "post_processing": {"actions_failed": ["blah"],
+                                "actions_ran": []}}},
+          [{"title_text": 'CDR Failed or No Malicious Files Found'}]),
+         ({"scan_results": {"progress_percentage": 100, "z": {"scan_result_i": 0, "scan_time": "blah"}},
+           "file_info": {"file_size": "blah"},
+           "process_info":
+           {"queue_time": "blah", "processing_time": "blah", "progress_percentage": 100,
+            "post_processing": {"actions_failed": [],
+                                "actions_ran": ["blah"]}}},
+          [{"title_text": 'CDR Successfully Executed', "body_format": "JSON",
+            "body": '{"actions_failed": [], "actions_ran": ["blah"]}'}]),
+         ({
+             "scan_results":
+             {"progress_percentage": 100, "z": {"scan_result_i": 0, "scan_time": "blah"},
+              "y": {"scan_result_i": 1, "scan_time": "blah", "threat_found": "blah"}},
+             "file_info": {"file_size": "blah"},
+             "process_info":
+             {"queue_time": "blah", "processing_time": "blah", "progress_percentage": 100,
+                 "post_processing": {"actions_failed": [],
+                                     "actions_ran": ["blah"]}}},
+          [{"title_text": 'AV Detections as Infected or Suspicious',
+            "subsections":
+            [{"title_text": 'y identified the file as blah', "tags": {'av.virus_name': ['blah']},
+              "body":
+              '{"av_name": "y", "virus_name": "blah", "scan_result": "infected", "engine_version": "blah", "engine_definition_time": "blah"}',
+              "body_format": "KEY_VALUE", "heuristic": {"heur_id": 1, "signatures": {'y.blah': 1}}}]},
+           {"title_text": 'Failed to Scan or No Threats Detected',
+            "subsections":
+            [{"title_text": 'No Threat Detected by AV Engine(s)', "body_format": "KEY_VALUE",
+              "body": '{"no_threat_detected": ["z"]}'}]},
+           {"title_text": 'CDR Successfully Executed', "body": '{"actions_failed": [], "actions_ran": ["blah"]}',
+            "body_format": "JSON"}]), ])
     def test_parse_results(response, correct_res_secs, metadefender_class_instance):
         from assemblyline_v4_service.common.result import Result, ResultSection, BODY_FORMAT, Heuristic
         metadefender_class_instance.blocklist = ["a"]
         metadefender_class_instance.sig_score_revision_map = {}
         metadefender_class_instance.kw_score_revision_map = {}
         metadefender_class_instance.current_node = "http://blah"
-        metadefender_class_instance.nodes[metadefender_class_instance.current_node] = {"engine_map": {"z": {"version": "blah", "def_time": "blah"}, "y": {"version": "blah", "def_time": "blah"}}, "queue_times": [], "file_count": 0}
+        metadefender_class_instance.nodes[metadefender_class_instance.current_node] = {
+            "engine_map": {"z": {"version": "blah", "def_time": "blah"},
+                           "y": {"version": "blah", "def_time": "blah"}},
+            "queue_times": [],
+            "file_count": 0}
         correct_result = Result()
         for correct_res_sec in correct_res_secs:
             section = ResultSection(
@@ -586,13 +737,12 @@ class TestMetaDefender:
                     tags=subsec.get("tags"),
                 )
                 if subsec.get("heuristic"):
-                    heur = Heuristic(subsec["heuristic"]["heur_id"])
-                    heur.signatures = subsec["heuristic"]["signatures"]
-                    subsection.heuristic = heur
+                    subsection.set_heuristic(subsec["heuristic"]["heur_id"])
+                    print(subsec["heuristic"]["signatures"])
+                    for key in subsec["heuristic"]["signatures"].keys():
+                        subsection.heuristic.add_signature_id(key)
                 section.add_subsection(subsection)
             correct_result.add_section(section)
         actual_result = metadefender_class_instance.parse_results(response)
         for index, section in enumerate(actual_result.sections):
             assert check_section_equality(section, correct_result.sections[index])
-
-
