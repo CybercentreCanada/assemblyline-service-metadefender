@@ -11,7 +11,7 @@ from assemblyline.common.isotime import iso_to_local, iso_to_epoch, epoch_to_loc
 from assemblyline_v4_service.common.api import ServiceAPIError
 from assemblyline_v4_service.common.base import ServiceBase
 from assemblyline_v4_service.common.request import ServiceRequest
-from assemblyline_v4_service.common.result import Result, ResultSection, Classification, BODY_FORMAT, Heuristic
+from assemblyline_v4_service.common.result import Result, ResultSection, Classification, BODY_FORMAT
 
 
 class AvHitSection(ResultSection):
@@ -34,19 +34,18 @@ class AvHitSection(ResultSection):
             classification=Classification.UNRESTRICTED,
         )
         signature_name = f'{av_name}.{virus_name}'
-        section_heur = Heuristic(heur_id)
+        self.set_heuristic(heur_id)
         if signature_name in sig_score_revision_map:
-            section_heur.add_signature_id(signature_name, sig_score_revision_map[signature_name])
+            self.heuristic.add_signature_id(signature_name, sig_score_revision_map[signature_name])
         elif any(kw in signature_name.lower() for kw in kw_score_revision_map):
-            section_heur.add_signature_id(
+            self.heuristic.add_signature_id(
                 signature_name,
                 max([kw_score_revision_map[kw] for kw in kw_score_revision_map if kw in signature_name.lower()])
             )
         elif virus_name in safelist_match:
-            section_heur.add_signature_id(signature_name, score=0)
+            self.heuristic.add_signature_id(signature_name, score=0)
         else:
-            section_heur.add_signature_id(signature_name)
-        self.heuristic = section_heur
+            self.heuristic.add_signature_id(signature_name)
         self.add_tag('av.virus_name', virus_name)
 
 
@@ -458,7 +457,7 @@ class MetaDefender(ServiceBase):
                 fail = True
             elif processed['actions_ran']:
                 hit = True
-        #add cdr json extracted
+        # add cdr json extracted
         if hit:
             cdr_json_section = ResultSection('CDR Successfully Executed', body_format=BODY_FORMAT.JSON,
                                              body=json.dumps(processed))
