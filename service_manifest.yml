@@ -20,6 +20,7 @@ licence_count: 0
 config:
   api_key: ""
   base_url: 'http://localhost:8008/'
+  verify_certificate: true
   md_version: 4
   md_timeout: 40
   min_node_time: 60
