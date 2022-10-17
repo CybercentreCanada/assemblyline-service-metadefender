@@ -6,12 +6,15 @@ from urllib.parse import urljoin
 import json
 from requests import Session, Response, ConnectionError, exceptions, codes
 
+from assemblyline.common import forge
 from assemblyline.common.exceptions import RecoverableError
 from assemblyline.common.isotime import iso_to_local, iso_to_epoch, epoch_to_local, now, now_as_local
 from assemblyline_v4_service.common.api import ServiceAPIError
 from assemblyline_v4_service.common.base import ServiceBase
 from assemblyline_v4_service.common.request import ServiceRequest
-from assemblyline_v4_service.common.result import Result, ResultSection, Classification, BODY_FORMAT
+from assemblyline_v4_service.common.result import Result, ResultSection, BODY_FORMAT
+
+Classification = forge.get_classification()
 
 
 class AvHitSection(ResultSection):
