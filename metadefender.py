@@ -6,12 +6,15 @@ from urllib.parse import urljoin
 import json
 from requests import Session, Response, ConnectionError, exceptions, codes
 
+from assemblyline.common import forge
 from assemblyline.common.exceptions import RecoverableError
 from assemblyline.common.isotime import iso_to_local, iso_to_epoch, epoch_to_local, now, now_as_local
 from assemblyline_v4_service.common.api import ServiceAPIError
 from assemblyline_v4_service.common.base import ServiceBase
 from assemblyline_v4_service.common.request import ServiceRequest
-from assemblyline_v4_service.common.result import Result, ResultSection, Classification, BODY_FORMAT
+from assemblyline_v4_service.common.result import Result, ResultSection, BODY_FORMAT
+
+Classification = forge.get_classification()
 
 
 class AvHitSection(ResultSection):
@@ -73,6 +76,7 @@ class MetaDefender(ServiceBase):
         self.kw_score_revision_map: Optional[Dict[str, int]] = None
         self.sig_score_revision_map: Optional[Dict[str, Any]] = None
         self.safelist_match: List[str] = []
+        self.verify = self.config.get("verify_certificate", True)
         api_key = self.config.get("api_key")
         if api_key:
             self.headers = {"apikey": api_key}
@@ -173,7 +177,7 @@ class MetaDefender(ServiceBase):
 
         try:
             self.log.debug(f"_get_version_map: GET {url}")
-            r = self.session.get(url=url, timeout=self.timeout)
+            r = self.session.get(url=url, timeout=self.timeout, verify=self.verify)
             engines = r.json()
 
             for engine in engines:
@@ -268,7 +272,7 @@ class MetaDefender(ServiceBase):
 
         try:
             self.log.debug(f"get_scan_results_by_data_id: GET {url}")
-            return self.session.get(url=url, headers=self.headers, timeout=self.timeout)
+            return self.session.get(url=url, headers=self.headers, timeout=self.timeout, verify=self.verify)
         except exceptions.Timeout:
             self.new_node(force=True, reset_queue=True)
             raise Exception(f"Node ({self.current_node}) timed out after {self.timeout}s "
@@ -332,7 +336,7 @@ class MetaDefender(ServiceBase):
 
         try:
             self.log.debug(f"scan_file: POST {url}")
-            r = self.session.post(url=url, data=data, headers=self.headers, timeout=self.timeout)
+            r = self.session.post(url=url, data=data, headers=self.headers, timeout=self.timeout, verify=self.verify)
         except exceptions.Timeout:
             self.new_node(force=True, reset_queue=True)
             raise Exception(f"Node ({self.current_node}) timed out after {self.timeout}s "

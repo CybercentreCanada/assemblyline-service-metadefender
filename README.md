@@ -39,6 +39,7 @@ Once MetaDefender Core has been installed and activated with your license, the f
 * **base_url**: The URL(s) of the MetaDefender deployment(s)
 	* If you have a **single** MetaDefender Core deployment, set the service variable to **str** type and enter the URL of your MetaDefender Core deployment
 	* If you have **multiple** MetaDefender Core deployments, set the service variable to **list** type and enter the URLs of your MetaDefender Core deployments separated by a comma
+* **verify_certificate**: Setting to False will ignore verifying the SSL certificate
 * **md_version**: Version of MetaDefender you're connecting to (3 or 4)
 * **md_timeout**: Maximum amount of time to wait while connecting to the MetaDefender server
 * **max_md_scan_time**: Maximum amount of time to wait for scan results before the MetaDefender server is put on a brief timeout (only applicable when multiple MetaDefender deployments are used)
