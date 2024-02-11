@@ -177,7 +177,7 @@ class MetaDefender(ServiceBase):
 
         try:
             self.log.debug(f"_get_version_map: GET {url}")
-            r = self.session.get(url=url, timeout=self.timeout, verify=self.verify)
+            r = self.session.get(url=url, headers=self.headers, timeout=self.timeout, verify=self.verify)
             engines = r.json()
 
             for engine in engines:
