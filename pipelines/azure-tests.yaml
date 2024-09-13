@@ -1,36 +1,32 @@
 name: tests
 
+variables:
+  - group: unittest-samples
+
 trigger: ["*"]
 pr: ["*"]
 
 pool:
   vmImage: "ubuntu-20.04"
 
-jobs:
-  - job: run_test
-    strategy:
-      matrix:
-        python3_7:
-          python.version: "3.7"
-        Python3_8:
-          python.version: "3.8"
+resources:
+  repositories:
+    - repository: PipelineTemplates
+      type: github
+      name: CybercentreCanada/assemblyline-pipeline-templates
+      ref: refs/heads/main
+      endpoint: github-repo-sa
+      trigger: none
+    - repository: unittest-samples
+      type: github
+      name: $(unittest_samples_repository)
+      ref: main
+      endpoint: github-repo-sa
+      trigger: none
 
-    timeoutInMinutes: 10
-
-    steps:
-      - task: UsePythonVersion@0
-        displayName: Set python version
-        inputs:
-          versionSpec: "$(python.version)"
-      - script: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-utils libfuzzy-dev libfuzzy2
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo env "PATH=$PATH" python -m pip install -U --no-cache-dir assemblyline assemblyline_v4_service
-          sudo env "PATH=$PATH" python -m pip install -U --no-cache-dir -r `pwd`/test/requirements.txt
-          sudo rm -rf /tmp/* /var/lib/apt/lists/* ~/.cache/pip
-        displayName: Setup environment
-      - script: python -m pytest --durations=10 -rsx -vv --cov-report=xml --cov=metadefender
-        displayName: Test
-      - script: python -m codecov
-        displayName: Upload Coverage
+extends:
+  template: stages/test-service.yaml@PipelineTemplates
+  parameters:
+    samples_repo: unittest-samples
+    test_container: "false"
+    
