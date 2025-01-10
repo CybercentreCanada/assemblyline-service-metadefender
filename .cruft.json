@@ -1,0 +1,23 @@
+{
+  "template": "https://github.com/CybercentreCanada/assemblyline-service-template.git",
+  "commit": "349a8390e48c1607f6dc245add2627df07c7bc9b",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "service_name": "metadefender",
+      "__svc_name": "metadefender",
+      "__repository": "assemblyline-service-metadefender",
+      "__pkg_name": "metadefender",
+      "class_name": "MetaDefender",
+      "short_description": "This Assemblyline service interfaces with the [MetaDefender Core](https://www.opswat.com/metadefender-core) multi-scanning AV engine.",
+      "short_description_fr": "Ce service Assemblyline s'interface avec le moteur AV à balayage multiple de [MetaDefender Core] (https://www.opswat.com/metadefender-core).",
+      "stage": "CORE",
+      "category": "Antivirus",
+      "org_name_full": "CybercentreCanada",
+      "org_name_short": "cccs",
+      "license": "mit",
+      "_template": "https://github.com/CybercentreCanada/assemblyline-service-template.git"
+    }
+  },
+  "directory": null
+}

@@ -1,21 +1,25 @@
 name: MetaDefender
 version: $SERVICE_TAG
-description: >
-  Scan your files with a multi antivirus scanning engine.
+description: This Assemblyline service interfaces with the [MetaDefender Core](https://www.opswat.com/metadefender-core) multi-scanning AV engine.
 
+# Regex defining the types of files the service accepts and rejects
 accepts: .*
 rejects: empty|metadata/.*
 
+# At which stage the service should run (one of FILTER, EXTRACT, CORE, SECONDARY, POST, REVIEW)
+# NOTE: Stages are executed in the order defined in the list
 stage: CORE
+# Which category the service is part of (one of Antivirus, Dynamic Analysis, External, Extraction, Filtering, Internet Connected, Networking, Static Analysis)
 category: Antivirus
 
+# Does the service require access to the file to perform its task
+# If set to false, the service will only have access to the file metadata (e.g. Hashes, size, type, ...)
 file_required: true
+# Maximum execution time the service has before it's considered to be timed out
 timeout: 60
-disable_cache: false
 
+# is the service enabled by default
 enabled: false
-is_external: false
-licence_count: 0
 
 config:
   api_key: ""

@@ -92,7 +92,7 @@ def remove_tmp_manifest():
 def metadefender_class_instance(mocker, dummy_api_interface):
     create_tmp_manifest()
     try:
-        from metadefender import MetaDefender
+        from metadefender.metadefender import MetaDefender
         mocker.patch.object(MetaDefender, "get_api_interface", return_value=dummy_api_interface)
         yield MetaDefender()
     finally:
@@ -125,7 +125,7 @@ class TestAvHitSection:
         from json import dumps
         from assemblyline_v4_service.common.result import BODY_FORMAT, ResultSection
         mocker.patch("assemblyline_v4_service.common.api.ServiceAPIError")
-        from metadefender import AvHitSection
+        from metadefender.metadefender import AvHitSection
         av_name = "blah"
         virus_name = "blah"
         engine = {}
@@ -208,7 +208,7 @@ class TestAvErrorSection:
     def test_init(mocker):
         from assemblyline_v4_service.common.result import ResultSection
         mocker.patch("assemblyline_v4_service.common.api.ServiceAPIError")
-        from metadefender import AvErrorSection
+        from metadefender.metadefender import AvErrorSection
         av_name = "blah"
         engine = {}
         actual_res_sec = AvErrorSection(av_name, engine)
