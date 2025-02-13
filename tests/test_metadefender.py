@@ -525,45 +525,47 @@ class TestMetaDefender:
     def test_scan_file(metadefender_class_instance, mocker):
         from requests import Session, Response, exceptions
         from assemblyline.common.exceptions import RecoverableError
-        file_name = "blah.txt"
-        with open(file_name, "w") as f:
-            f.write("blah")
-        metadefender_class_instance.current_node = "http://blah"
-        metadefender_class_instance.nodes[metadefender_class_instance.current_node] = {}
-        metadefender_class_instance.session = Session()
-        mocker.patch.object(metadefender_class_instance, "new_node")
-        with requests_mock.Mocker() as m:
-            m.post(f"{metadefender_class_instance.current_node}/file", status_code=404)
-            with pytest.raises(Exception):
-                metadefender_class_instance.scan_file(file_name)
+        from tempfile import NamedTemporaryFile
+        with NamedTemporaryFile("w") as temp_file:
+            file_name = temp_file.name
+            temp_file.write("blah")
+            temp_file.seek(0)
+            metadefender_class_instance.current_node = "http://blah"
+            metadefender_class_instance.nodes[metadefender_class_instance.current_node] = {}
+            metadefender_class_instance.session = Session()
+            mocker.patch.object(metadefender_class_instance, "new_node")
+            with requests_mock.Mocker() as m:
+                m.post(f"{metadefender_class_instance.current_node}/file", status_code=404)
+                with pytest.raises(Exception):
+                    metadefender_class_instance.scan_file(file_name)
 
-            m.post(f"{metadefender_class_instance.current_node}/file", exc=exceptions.Timeout)
-            with pytest.raises(Exception):
-                metadefender_class_instance.scan_file(file_name)
+                m.post(f"{metadefender_class_instance.current_node}/file", exc=exceptions.Timeout)
+                with pytest.raises(Exception):
+                    metadefender_class_instance.scan_file(file_name)
 
-            m.post(f"{metadefender_class_instance.current_node}/file", exc=exceptions.ConnectionError)
-            with pytest.raises(RecoverableError):
-                metadefender_class_instance.scan_file(file_name)
+                m.post(f"{metadefender_class_instance.current_node}/file", exc=exceptions.ConnectionError)
+                with pytest.raises(RecoverableError):
+                    metadefender_class_instance.scan_file(file_name)
 
-            unsuccess_resp = Response()
-            unsuccess_resp.status_code = 404
-            unsuccess_resp._content = b"{}"
-            mocker.patch.object(metadefender_class_instance, "get_scan_results_by_data_id", return_value=unsuccess_resp)
-            m.post(f"{metadefender_class_instance.current_node}/file", status_code=200, json={"data_id": "blah"})
-            assert metadefender_class_instance.scan_file(file_name) == {}
+                unsuccess_resp = Response()
+                unsuccess_resp.status_code = 404
+                unsuccess_resp._content = b"{}"
+                mocker.patch.object(metadefender_class_instance, "get_scan_results_by_data_id", return_value=unsuccess_resp)
+                m.post(f"{metadefender_class_instance.current_node}/file", status_code=200, json={"data_id": "blah"})
+                assert metadefender_class_instance.scan_file(file_name) == {}
 
-            success_resp = Response()
-            success_resp.status_code = 200
-            success_resp._content = b'{"scan_results": {"progress_percentage": 100}}'
-            mocker.patch.object(metadefender_class_instance, "get_scan_results_by_data_id", return_value=success_resp)
-            assert metadefender_class_instance.scan_file(file_name) == {'scan_results': {'progress_percentage': 100}}
-            assert metadefender_class_instance.nodes[metadefender_class_instance.current_node] == {
-                "timeout_count": 0, "timeout": 0}
+                success_resp = Response()
+                success_resp.status_code = 200
+                success_resp._content = b'{"scan_results": {"progress_percentage": 100}}'
+                mocker.patch.object(metadefender_class_instance, "get_scan_results_by_data_id", return_value=success_resp)
+                assert metadefender_class_instance.scan_file(file_name) == {'scan_results': {'progress_percentage': 100}}
+                assert metadefender_class_instance.nodes[metadefender_class_instance.current_node] == {
+                    "timeout_count": 0, "timeout": 0}
 
-            success_resp._content = b'{"scan_results": {}}'
-            mocker.patch.object(metadefender_class_instance, "get_scan_results_by_data_id", return_value=success_resp)
-            with pytest.raises(RecoverableError):
-                metadefender_class_instance.scan_file(file_name)
+                success_resp._content = b'{"scan_results": {}}'
+                mocker.patch.object(metadefender_class_instance, "get_scan_results_by_data_id", return_value=success_resp)
+                with pytest.raises(RecoverableError):
+                    metadefender_class_instance.scan_file(file_name)
 
     @staticmethod
     @pytest.mark.parametrize(
